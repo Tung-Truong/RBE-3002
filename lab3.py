@@ -21,8 +21,9 @@ def astar(start, goal):													# returns zero if no path from start to goal
 	openSet = [start]													# Unevaluated but discovered nodes 
 	cameFrom = []														# Will contain most efficient previous steps
 	gCost = []															# For each node, the cost of getting from the start node to that node
+	fCost = []															# For each node, the cost of getting from that node to goal
 	gCost[start] = 0       												# Have not travelled when at start, thererfore inits as zero
-	fCost[start] = ###### IDK !!! astar(current, goal) 								# The cost of going start to goal by passing that node
+	fCost[start] = manhattan(start, goal)								# The cost of going start to goal by passing that node
 
 	while(openSet is not None):
 
