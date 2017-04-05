@@ -72,7 +72,9 @@ def astar(start, goal):													# returns zero if no path from start to goal
 	gCost[start] = 0       												# Have not travelled when at start, thererfore inits as zero
 	fCost[start] = eucl(start, goal)									# The cost of going start to goal by passing that node
 
-	while openSet:
+	#add all nodes to openset that open?
+
+	while openSet is not empty:
 
 		current = start														# goes to the node in openset having the lowest fCost
 
@@ -123,6 +125,37 @@ def eucl(node):												# distance between node and goal
 	ny = goal.y
 	dist = math.sqrt((nx-ix)**2 + (ny - iy)**2)
 	return dist
+
+
+def getNeighbors(anode):
+	#gets list of neighboring nodes (4connected)
+
+	#get x and y
+	x = anode.x
+	y = anode.y
+
+	#make a node for ea direction
+	nodeN = Node(x, y + 1, 0, anode)
+	nodeN.calcgCost
+	nodeN.calcfCost
+
+	nodeS = Node(x, y - 1, 0, anode)
+	nodeS.calcgCost
+	nodeS.calcfCost
+
+	nodeW = Node(x - 1, y, 0, anode)
+	nodeW.calcgCost
+	nodeW.calcfCost
+
+	nodeE = Node(x + 1, y, 0, anode)
+	nodeE.calcgCost
+	nodeE.calcfCost
+
+	nodelist = [nodeN, nodeS, nodeW, nodeE]
+
+	return nodelist
+
+
 
 
 
