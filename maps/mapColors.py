@@ -17,8 +17,10 @@ def getCells(msg):
     #populate header
     #print msg.header.frame_id
     colored_cells.header.frame_id = msg.header.frame_id
-    cell_size = msg.info.resolution
+    cell_size = msg.info.resolution #resolution in m/cell
+    #set cell width and height to resolution
     colored_cells.cell_width = cell_size
+    print "CELL WIDTH: " + str(colored_cells.cell_width)
     colored_cells.cell_height = cell_size
     print str(msg.info.origin)
     
@@ -37,15 +39,15 @@ def getCells(msg):
         #iterate through 2d matrix
         for x in range(0,numCells):
             #if unexplored cell
-            print x
+            #print x
             if data[x] is (-1):
                 #create point
                 point = Point()
-                print "found a cell! " + str(x)
-                point.x = x % numCols
-                print str(point.x)
-                point.y = x // numRows
-                print str(point.y)
+                #print "found a cell! " + str(x)
+                point.x = float(x % numCols) * cell_size #column number * meters/cell
+                #print str(point.x)
+                point.y = float(x // numCols) * cell_size #row number * meters/cell
+                #print str(point.y)
                 point.z = 0 #or 1 needed???
                 #add point to colored_cells
                 colored_cells.cells.append(point)
