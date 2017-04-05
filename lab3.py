@@ -1,5 +1,7 @@
-import rospy, math
+import rospy, math, tf
 from geometry_msgs.msg import PoseStamped
+from tf.transformations import euler_from_quaternion
+from nav_msgs.msg import OccupancyGrid
 
 class Node:
 
@@ -22,12 +24,13 @@ def astar(start, goal):													# returns zero if no path from start to goal
 	cameFrom = []														# Will contain most efficient previous steps
 	gCost = []															# For each node, the cost of getting from the start node to that node
 	fCost = []															# For each node, the cost of getting from that node to goal
+	camFrom[start] = 0
 	gCost[start] = 0       												# Have not travelled when at start, thererfore inits as zero
-	fCost[start] = manhattan(start, goal)								# The cost of going start to goal by passing that node
+	fCost[start] = eucl(start, goal)									# The cost of going start to goal by passing that node
 
 	while(openSet is not None):
 
-		current = min()													# goes to the node in openset having the lowest fCost
+		current = ###########3											# goes to the node in openset having the lowest fCost
 
 		if(current is goal):											# if current is goal ->
 			return repath(current) 										# then return the path back to the start
@@ -67,7 +70,7 @@ def repath(node):
 		p.add(last)
 	return path
 
-def eucl(node, neighbor):												#distance between 2 nodes
+def eucl(node, neighbor):												# distance between 2 nodes
 	ix = node.x
 	iy = node.y
 	nx = neighbor.x
@@ -76,32 +79,58 @@ def eucl(node, neighbor):												#distance between 2 nodes
 	return dist
 
 
-def mkGraph(rows, columns, inits): 		# makes a graph with specified number of rows and columns and initializes it to (inits)
-	# Define blank list
-	graph = []
-
-	#Generate rows with length of 10
-	for row in range(rows):
-	  # Appen a blank list to each row cell
-	  graph.append([])
-	  for column in range(columns):
-	    # Assign 0.5 to each row initially
-	    graph[row].append(inits)
-	return graph
 
 
+# def mkGraph(rows, columns, inits): 										# makes a graph with specified number of rows and columns and initializes it to (inits)
+# 	# Define blank list
+# 	graph = []
 
-def main():
+# 	#Generate rows with length of 10
+# 	for row in range(rows):
+# 	  # Appen a blank list to each row cell
+# 	  graph.append([])
+# 	  for column in range(columns):
+# 	    # Assign 0.5 to each row initially
+# 	    graph[row].append(inits)
+# 	return graph
+
+
+def goal(msg):															# stores goal pose as global			
+	global goal
+	if msg:
+		goal = msg.pose
+
+def ipose(msg):															# stores start pose as global
+	global ipose
+	if msg:
+		ipose = msg.pose
+
+def gcells(msg):															# stores the elements of GridCells as a global
+	global cell_width
+	global cell_height
+	global cells
+	if msg:
+		cell_width = msg.cell_width
+		cell_height = msg.cell_height
+		cells = msg.cells
+
+def ogrid(msg):															# stores the elements of GridCells as a global
+	global data
+
+	if msg:
+		data = msg.data
+
+def main():																# main function
 	while not rospy.isShutdown():
 		rospy.sleep()
 
 
 if __name__ == '__main__':
+	global goal
 	global spose
 	global GridCells
 	spose = PoseStamped()
 	GridCells = GridCells()
-
 
 	rospy.init_node("lab3")
 
@@ -109,9 +138,9 @@ if __name__ == '__main__':
 	
 
 ########SUBSCRIBERS
-	goal_sub = rospy.Subscribe('/navGoal', PoseStamped, queue_size=1)
-	init_sub = rospy.Subscribe('/initialPose', PoseStamped, queue_size=1)
-	map_sub = rospy.Subscribe('/map', GridCells, queue_size=1)
+	goal_sub = rospy.Subscribe('/navGoal', PoseStamped, goal, queue_size=1)
+	init_sub = rospy.Subscribe('/initialPose', PoseStamped, ipose, queue_size=1)
+	map_sub = rospy.Subscribe('/map', OccupancyGrid, ogrid, queue_size=1)
 
 	rospy.sleep(rospy.Duration(1, 0))
 
