@@ -3,7 +3,7 @@ RBE 3002 Labs
 
 Our code is seperated into 4 main docs.
 
-colorMap.py is the code which publishes gridCells to Rviz.
+mapColors.py is the code which publishes gridCells to Rviz.
 (maps contained in maps folder)
 
 lab3.py is our main A star and waypoint code
