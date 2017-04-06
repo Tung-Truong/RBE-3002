@@ -323,6 +323,18 @@ def main():
 	printPath(wp)
 	pubWaypoints(wp)
 
+	#travel to waypoints
+	#for w in wp:
+	#	ps = PoseStamped()
+	#	ps.header.frame_id = "map"
+	#	ps.pose.position.x = w.x
+	#	ps.pose.position.y = w.y
+	#	pub_goal(ps)
+
+		#sense when @ goal
+
+
+
 
 #################################################
 
@@ -363,6 +375,8 @@ def pubWaypoints(nodes):
 
 
 
+
+
 def printPath(path):
 	for p in path:
 		print "(",p.x,",",p.y,")->"
@@ -378,6 +392,7 @@ if __name__ == '__main__':
 	global pub_path
 	global pub_points
 	global pub_pose
+	global pub_goal
 
 	spose = PoseStamped()
 	#GridCells = GridCells()
@@ -395,7 +410,7 @@ if __name__ == '__main__':
 	init_sub = rospy.Subscriber('/startpose', PoseWithCovarianceStamped, ipose, queue_size=1)
 	map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)
 
-	
+	pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=1)
 
 	rospy.sleep(rospy.Duration(10, 0))
 
