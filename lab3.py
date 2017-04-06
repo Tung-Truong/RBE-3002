@@ -1,7 +1,7 @@
 import rospy, math, tf
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion
-from nav_msgs.msg import OccupancyGrid, GridCells
+from nav_msgs.msg import OccupancyGrid, GridCells, Path
 
 class Node:
 	def __init__(self, x, y, gCost, fCost, cameFrom):
@@ -21,7 +21,7 @@ class Node:
 		return self.gCost + eucl(self)
 
 	def isValid(self):
-		ret = (getCellValue(self.x, self.y) < 20)
+		ret = bool(getCellValue(self.x, self.y) < 20)
 		return ret
 
 #returns data (probability) of map cell given (x,y) coord
@@ -33,7 +33,7 @@ def getCellValue(x,y):
     rows = mapdata.info.height
    
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
-    return mapdata[index] 
+    return mapdata.data[index] 
 
 def pointToIndex(x,y):
     global mapdata
@@ -79,33 +79,50 @@ def astar(start, goal):													# returns zero if no path from start to goal
 		#get lowest cost from openSet
 		current = lowestFcost(openSet)														# goes to the node in openset having the lowest fCost
 
-		if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
-			return repath(current) 										# then return the path back to the start
+		 										# then return the path back to the start
 
 		openSet.remove(current) 										# update each of the sets
-		closedSet.append(current)
+		
 
 		neighbors = getNeighbors(current)
+		
 
 		for neighbor in neighbors:
+			if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
+				return repath(current)
+
+			neighbor.gCost = current.gCost + dist_between(current,neighbor)
 			
-			if (neighbor in closedSet): #or (not neighbor.isValid): 									# ignores already evaluated nodes
-				continue
-
-			tentativegCost = current.gCost + 1	# the cost from start to the neighbor
-
-			if neighbor not in openSet: 								# discovered a new node
-				openSet.append(neighbor) 	
-
-			elif (tentativegCost >= neighbor.gCost): 					# this is not a better path
-				continue
-
-			neighbor.cameFrom = current
-			neighbor.gCost = tentativegCost
 			neighbor.fCost = neighbor.gCost + eucl(neighbor)
 
+			if inOpenSet(neighbor):
+				continue
+			if inClosedSet(neighbor): 									# ignores already evaluated nodes
+				continue
+
+			else:
+				openSet.append(neighbor) 	
+
+
+		closedSet.append(current)
 	return "Error in ASTAR"
 	##pass
+
+def inOpenSet(n):
+	#true = skip
+	global openSet
+	for q in openSet:
+		if (q.x is n.x) and (q.y is n.y) and (q.fCost <= n.fCost):
+			return True
+	return False
+
+def inClosedSet(n):
+	#true = skip
+	global closedSet
+	for q in closedSet:
+		if (q.x is n.x) and (q.y is n.y) and (q.fCost <= n.fCost):
+			return True
+	return False
 
 #manhtn dist from start to node
 def manhattan(node):												# returns the manhattan distance
@@ -113,6 +130,12 @@ def manhattan(node):												# returns the manhattan distance
 	x = abs(start.x - node.x)
 	y = abs(start.y - node.y)
 	return x + y
+
+def dist_between(nodeA, nodeB):
+	x = abs(nodeA.x - nodeB.x)
+	y = abs(nodeA.y - nodeB.y)
+	dist = x + y
+	return dist
 
 def repath(node):
 	global path
@@ -124,6 +147,20 @@ def repath(node):
 		n = n.cameFrom 
 		last = n.cameFrom
 	return path
+
+
+def drawPath(nodelist):
+	p = Path()
+	p.header.frame_id = "map"
+	for n in nodelist:
+		posestp = PoseStamped()
+		posestp.header.frame_id = "map"
+		posestp.pose.position.x = n.x
+		posestp.pose.position.y = n.y
+		p.poses.append(posestp)
+	pub_path.publish(p)
+
+
 
 #straight dist from node to goal
 def eucl(node):												# distance between node and goal
@@ -137,6 +174,8 @@ def eucl(node):												# distance between node and goal
 
 
 def getNeighbors(anode):
+	global openSet
+	global closedSet
 	#gets list of neighboring nodes (4connected)
 
 	#get x and y
@@ -162,6 +201,14 @@ def getNeighbors(anode):
 
 	nodelist = [nodeN, nodeS, nodeW, nodeE]
 
+	for n in nodelist:
+		val = getCellValue(n.x, n.y)
+		if ((val > 20) or (val < 0)):
+			nodelist.remove(n)
+			#openSet.remove(n)
+			#closedSet.append(n)
+			print "OBSTACLE @ ", n.x, ",", n.y
+
 	return nodelist
 
 
@@ -171,17 +218,16 @@ def lowestFcost(nodes):
 	lowest_node = 0
 
 	for n in nodes:
-		if n.fCost < lowest_cost:
+		if (n.fCost < lowest_cost):
 			lowest_cost = n.fCost
 			lowest_node = n
 
 
 	#all other nodes to closed set and take off open set to not recalculate
-	for m in nodes:
-		if m is not lowest_node:
-			closedSet.append(m)
-			openSet.remove(m)
-
+	#for m in nodes:
+	#	if m is not lowest_node:
+	#		closedSet.append(m)
+	#		openSet.remove(m)
 	return lowest_node
 
 
@@ -213,6 +259,7 @@ def ipose(msg):															# stores start pose as global
 	global ipose
 	if msg:
 		ipose = msg.pose
+		
 		print ipose
 
 
@@ -229,9 +276,13 @@ def ogrid(msg):															# stores the elements of GridCells as a global
 	global mapdata
 
 	if msg:
-		mapdata = msg.data
+		mapdata = msg
+		print "GOT MAP!"
+		print getCellValue(166,258)
+		#print str(Node(166,258,0,0,0).isValid)
 
-
+def toRes(x):
+	return int(x) 
 
 
 ###############################################
@@ -246,14 +297,20 @@ def main():
 
 
 	#get start and goal from rviz
-	start = Node(ipose.pose.position.x, ipose.pose.position.y, 0,0,0)
+	print "ipose - x rnd", toRes(ipose.pose.position.x)
+	print "ipose - x raw", ipose.pose.position.x
+	#round x and y to grid resolution
+	start = Node(toRes(ipose.pose.position.x), toRes(ipose.pose.position.y), 0,0,0)
 	start.calcfCost
 	
-	goal = Node(gl.position.x, gl.position.y,0,0,0)
-
+	#print "goal - x rnd", toRes(gl.position.x)
+	goal = Node(toRes(gl.position.x), toRes(gl.position.y),0,0,0)
+	#pub_pose.publish(ipose)
 	path = astar(start,goal)
 
 	printPath(path)
+	drawPath(path) #publishes
+
 
 #################################################
 
@@ -281,9 +338,11 @@ if __name__ == '__main__':
 	init_sub = rospy.Subscriber('/startpose', PoseWithCovarianceStamped, ipose, queue_size=1)
 	map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)
 
+	pub_path = rospy.Publisher('/astarpath', Path, queue_size=1)
+
 	rospy.sleep(rospy.Duration(10, 0))
 
-	#pub = rospy.Publisher('/arrow', PoseStamped, queue_size = 1)
+	#pub_pose = rospy.Publisher('/arrow', PoseStamped, queue_size = 1)
 
 	print "begin main"
 	
