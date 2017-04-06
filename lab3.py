@@ -1,7 +1,7 @@
 import rospy, math, tf
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Point
 from tf.transformations import euler_from_quaternion
-from nav_msgs.msg import OccupancyGrid, GridCells, Path
+from nav_msgs.msg import GridCells, OccupancyGrid,  Path
 
 class Node:
 	def __init__(self, x, y, gCost, fCost, cameFrom):
@@ -172,6 +172,14 @@ def eucl(node):												# distance between node and goal
 	dist = math.sqrt((nx-ix)**2 + (ny - iy)**2)
 	return dist
 
+def eucl2(node, end):												# distance between node and end
+	ix = node.x
+	iy = node.y
+	nx = end.x
+	ny = end.y
+	dist = math.sqrt((nx-ix)**2 + (ny - iy)**2)
+	return dist
+
 
 def getNeighbors(anode):
 	global openSet
@@ -290,7 +298,7 @@ def toRes(x):
 def main():	
 	global ipose
 	global gl
-
+	#global pub_pose
 	global start
 	global goal															# main function
 	
@@ -311,8 +319,49 @@ def main():
 	printPath(path)
 	drawPath(path) #publishes
 
+	wp = makeWaypoints(path)
+	printPath(wp)
+	pubWaypoints(wp)
+
 
 #################################################
+
+def makeWaypoints(apath):
+	waypoints = []
+	prev1 = apath[1] # start of path...prev2, prev1, current,...
+	prev2 = apath[0]
+	curr = apath[2]
+
+	for x in range(2,len(apath)):
+		curr = apath[x]
+		prev1 = apath[x - 1]
+		prev2 = apath[x - 2]
+		d = eucl2(curr, prev2)
+		if d < 2:
+			print "TURN!"
+			waypoints.append(prev1)
+	return waypoints
+
+def pubWaypoints(nodes):
+	global pub_points
+	g = GridCells()
+	g.header.frame_id = "map"
+	g.cell_height = 1
+	g.cell_width = 1
+
+
+	for n in nodes:
+		point = Point()
+		point.x = n.x
+		point.y = n.y
+		point.z = 0
+		g.cells.append(point)
+	pub_points.publish(g)
+
+
+
+
+
 
 def printPath(path):
 	for p in path:
@@ -323,22 +372,30 @@ if __name__ == '__main__':
 	global goal
 	global start
 	global spose
-	global GridCells
+	#global GridCells
 	global mapdata
+
+	global pub_path
+	global pub_points
+	global pub_pose
+
 	spose = PoseStamped()
-	GridCells = GridCells()
+	#GridCells = GridCells()
 
 	rospy.init_node("lab3")
 
 ########PUBLISHERS
-	
-
+	pub_path = rospy.Publisher('/astarpath', Path, queue_size=1)
+	rospy.sleep(rospy.Duration(1, 0))
+	pub_points = rospy.Publisher('/ourwaypoints', GridCells, queue_size=1)
+	rospy.sleep(rospy.Duration(1, 0))
+ 
 ########SUBSCRIBERS
 	goal_sub = rospy.Subscriber('/goalpose', PoseStamped, gl, queue_size=1)
 	init_sub = rospy.Subscriber('/startpose', PoseWithCovarianceStamped, ipose, queue_size=1)
 	map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)
 
-	pub_path = rospy.Publisher('/astarpath', Path, queue_size=1)
+	
 
 	rospy.sleep(rospy.Duration(10, 0))
 
