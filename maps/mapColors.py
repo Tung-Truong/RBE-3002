@@ -52,8 +52,51 @@ def getCells(msg):
                 #add point to colored_cells
                 colored_cells.cells.append(point)
             #print data[x]
-                    
 
+#function that adds a buffer to all the obstacles
+def getBuffer(cells):
+    global buffer_cells
+    buffer_cells = GridCells()
+    
+    #populate header
+    #print msg.header.frame_id
+    buffer_cells.header.frame_id = msg.header.frame_id
+    cell_size = msg.info.resolution #resolution in m/cell
+    #set cell width and height to resolution
+    buffer_cells.cell_width = cell_size
+    print "CELL WIDTH: " + str(colored_cells.cell_width)
+    buffer_cells.cell_height = cell_size
+    print str(msg.info.origin)
+    
+    if msg:
+        data = msg.data
+        print len(data)
+        #print data
+        #get size of map
+        numCols = msg.info.width
+        print numCols
+        numRows = msg.info.height
+        print numRows
+        numCells = numCols * numRows
+        print numCells
+        
+        #iterate through 2d matrix
+        for x in range(0,numCells):
+            #if unexplored cell
+            #print x
+            if data[x] is (-1):
+                #create point
+                buff = Point()
+                #print "found a cell! " + str(x)
+                buff.x = float(x % numCols) * cell_size #column number * meters/cell
+                #print str(point.x)
+                buff.y = float(x // numCols) * cell_size #row number * meters/cell
+                #print str(point.y)
+                buff.z = 0 #or 1 needed???
+                #add point to colored_cells
+                buffer_cells.cells.append(buff)
+            #print data[x]
+    
 
 # This is the program's main function
 if __name__ == '__main__':
@@ -66,6 +109,9 @@ if __name__ == '__main__':
     
     #pub to gridcells topic in rviz display
     pub = rospy.Publisher('/move_base/local_costmap/obstacles', GridCells, queue_size = 10)
+    
+    #pub to gridcells topic 
+    pub = rospy.Publisher('/move_base/local_costmap/buffer', BufferCells , queue_size = 10)
     
     #sub to map, get cells
     sub = rospy.Subscriber('/map', OccupancyGrid, getCells, queue_size=1)
