@@ -92,7 +92,7 @@ def astar(start, goal):													# returns zero if no path from start to goal
 			if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
 				return repath(current)
 
-			neighbor.gCost = current.gCost + dist_between(current,neighbor)
+			neighbor.gCost = current.gCost + 1 #dist_between(current,neighbor)
 			
 			neighbor.fCost = neighbor.gCost + eucl(neighbor)
 
@@ -193,26 +193,15 @@ def getNeighbors(anode):
 
 	#make a node for ea direction
 	nodeN = Node(x, y + 1, 0, 0, anode)
-	nodeN.calcgCost
-	nodeN.calcfCost
-
 	nodeS = Node(x, y - 1, 0, 0, anode)
-	nodeS.calcgCost
-	nodeS.calcfCost
-
 	nodeW = Node(x - 1, y, 0, 0, anode)
-	nodeW.calcgCost
-	nodeW.calcfCost
-
 	nodeE = Node(x + 1, y, 0, 0, anode)
-	nodeE.calcgCost
-	nodeE.calcfCost
 
 	nodelist = [nodeN, nodeS, nodeW, nodeE]
 
 	for n in nodelist:
 		val = getCellValue(n.x, n.y)
-		if ((val > 20) or (val < 0)):
+		if ((val > 40) or (val < 0)):
 			nodelist.remove(n)
 			#openSet.remove(n)
 			#closedSet.append(n)
