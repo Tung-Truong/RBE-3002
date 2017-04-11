@@ -9,6 +9,7 @@ def colorCells(cells):
     #msg = GridCells()
     #msg.cells = cells
     pub.publish(cells)
+    pub_buffer.publish(cells)
 
 def getCells(msg):
     global colored_cells #cell map for obstacles
@@ -77,7 +78,7 @@ def makeBuffer(point)
             buff.x = float((x+i) % numCols) * cell_size 
             buff.y = float((x+j) //numCols) * cell_size
             buff.z = 0
-            buffer_cells.cells.append(buff)
+            colored_cells.cells.append(buff)
             
 # This is the program's main function
 if __name__ == '__main__':
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     pub = rospy.Publisher('/move_base/local_costmap/obstacles', GridCells, queue_size = 10)
     
     #pub to gridcells topic 
-    pub = rospy.Publisher('/move_base/local_costmap/buffer', BufferCells , queue_size = 10)
+    pub_buffer = rospy.Publisher('/move_base/local_costmap/buffer', GridCells , queue_size = 10)
     
     #sub to map, get cells
     sub = rospy.Subscriber('/map', OccupancyGrid, getCells, queue_size=1)
