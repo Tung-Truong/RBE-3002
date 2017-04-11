@@ -66,18 +66,33 @@ def getCells(msg):
                 #add point to colored_cells
                 colored_cells.cells.append(point)
                 #expands the obstacle
-                makeBuffer(x)
+                v = indexToPoint(x)
+                makeBuffer(v.x, v.y)
             #print data[x]
 
 #function that takes in a point, and makes a 4x4 grid around it to 
-def makeBuffer(point)
-    for i in range (-4, 4)
-        for j in range(-4, 4)
+def makeBuffer(x,y):
+    for i in range (-4, 4):
+        for j in range(-4, 4):
             buff = Point()
-            buff.x = float((x+i) % numCols) * cell_size 
-            buff.y = float((x+j) //numCols) * cell_size
+            buff.x = (x+i) % numCols  
+            buff.y = (y+j) //numCols 
             buff.z = 0
             colored_cells.cells.append(buff)
+
+#shameless stolen from lab 3 for reuse
+def indexToPoint(index):
+	global mapdata
+	#gets map info
+	cols = mapdata.info.width
+	rows = mapdata.info.height
+
+	y = index % cols
+	x = index // cols
+	node = node()
+	node.x = x
+	node.y = y
+	return node
             
 # This is the program's main function
 if __name__ == '__main__':
