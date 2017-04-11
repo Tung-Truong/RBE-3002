@@ -55,7 +55,6 @@ def getCells(msg):
             #if unexplored cell
             #print x
             if data[x] is (-1):
-                for all points that are at most 40 cells away 
                 #create point
                 point = Point()
                 #print "found a cell! " + str(x)
