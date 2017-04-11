@@ -56,7 +56,7 @@ def getCells(msg):
         for x in range(0,numCells):
             #if unexplored cell
             #print x
-            if data[x] is (-1):
+            if data[x] > (60):
                 #create point
                 point = Point()
                 #print "found a cell! " + str(x)
@@ -74,14 +74,15 @@ def getCells(msg):
 
 #function that takes in a point, and makes a 4x4 grid around it to 
 def makeBuffer(x,y):
+    global colored_cells
     for i in range (-4, 4):
         for j in range(-4, 4):
             buff = Point()
             buff.x = (x+i)  
             buff.y = (y+j)
             buff.z = 0
-	    if buff not in colored_cells:
-		colored_cells.cells.append(buff)
+	    if buff not in colored_cells.cells:
+		    colored_cells.cells.append(buff)
 
 		
 #shameless stolen from lab 3 for reuse
@@ -115,7 +116,7 @@ if __name__ == '__main__':
     sub = rospy.Subscriber('/map', OccupancyGrid, getCells, queue_size=1)
     
     #put cells into colorCells (on timer?)
-    rospy.sleep(rospy.Duration(5, 0))
+    rospy.sleep(rospy.Duration(30, 0))
     colorCells(colored_cells)
     
     rospy.sleep(rospy.Duration(30, 0))

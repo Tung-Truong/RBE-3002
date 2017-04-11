@@ -69,19 +69,22 @@ def getCells(msg):
                 colored_cells.cells.append(point)
                 #expands the obstacle
                 v = indexToPoint(x)
-                makeBuffer(v[0], v[1], numCols)
+                makeBuffer(v[0], v[1])
             #print data[x]
 
 #function that takes in a point, and makes a 4x4 grid around it to 
-def makeBuffer(x,y,numCols):
+def makeBuffer(x,y):
+    global colored_cells
     for i in range (-4, 4):
         for j in range(-4, 4):
             buff = Point()
-            buff.x = (x+i) % numCols  
-            buff.y = (y+j) // numCols
+            buff.x = (x+i)  
+            buff.y = (y+j)
             buff.z = 0
-            colored_cells.cells.append(buff)
+	    if buff not in colored_cells.cells:
+		    colored_cells.cells.append(buff)
 
+		
 #shameless stolen from lab 3 for reuse
 def indexToPoint(index):
 	global mapdata
@@ -113,7 +116,7 @@ if __name__ == '__main__':
     sub = rospy.Subscriber('/map', OccupancyGrid, getCells, queue_size=1)
     
     #put cells into colorCells (on timer?)
-    rospy.sleep(rospy.Duration(5, 0))
+    rospy.sleep(rospy.Duration(30, 0))
     colorCells(colored_cells)
     
     rospy.sleep(rospy.Duration(30, 0))
