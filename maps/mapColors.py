@@ -80,8 +80,10 @@ def makeBuffer(x,y):
             buff.x = (x+i)  
             buff.y = (y+j)
             buff.z = 0
-            colored_cells.cells.append(buff)
+	    if buff not in colored_cells:
+		colored_cells.cells.append(buff)
 
+		
 #shameless stolen from lab 3 for reuse
 def indexToPoint(index):
 	global mapdata
