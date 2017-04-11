@@ -14,7 +14,8 @@ def colorCells(cells):
 def getCells(msg):
     global colored_cells #cell map for obstacles
     global buffer_cells #cell map for increasing the size of obstacles
-    
+    global mapdata
+        
     colored_cells = GridCells()
     buffer_cells = GridCells()
     
@@ -40,6 +41,7 @@ def getCells(msg):
     
     if msg:
         data = msg.data
+        mapdata = msg
         print len(data)
         #print data
         #get size of map
@@ -67,7 +69,7 @@ def getCells(msg):
                 colored_cells.cells.append(point)
                 #expands the obstacle
                 v = indexToPoint(x)
-                makeBuffer(v.x, v.y)
+                makeBuffer(v[0], v[1])
             #print data[x]
 
 #function that takes in a point, and makes a 4x4 grid around it to 
@@ -75,8 +77,8 @@ def makeBuffer(x,y):
     for i in range (-4, 4):
         for j in range(-4, 4):
             buff = Point()
-            buff.x = (x+i) % numCols  
-            buff.y = (y+j) //numCols 
+            buff.x = (x+i)  
+            buff.y = (y+j)
             buff.z = 0
             colored_cells.cells.append(buff)
 
@@ -89,16 +91,14 @@ def indexToPoint(index):
 
 	y = index % cols
 	x = index // cols
-	node = node()
-	node.x = x
-	node.y = y
-	return node
+	ret =(x,y)
+	return ret
             
 # This is the program's main function
 if __name__ == '__main__':
     global pub
     global colored_cells
-    
+    global mapdata
 
     # Change this node name to include your username
     rospy.init_node('color_cells_node')
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     sub = rospy.Subscriber('/map', OccupancyGrid, getCells, queue_size=1)
     
     #put cells into colorCells (on timer?)
-    rospy.sleep(rospy.Duration(2, 0))
+    rospy.sleep(rospy.Duration(5, 0))
     colorCells(colored_cells)
     
     rospy.sleep(rospy.Duration(30, 0))
