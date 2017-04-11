@@ -11,9 +11,12 @@ def colorCells(cells):
     pub.publish(cells)
 
 def getCells(msg):
-    global colored_cells
+    global colored_cells #cell map for obstacles
+    global buffer_cells #cell map for increasing the size of obstacles
     
     colored_cells = GridCells()
+    buffer_cells = GridCells()
+    
     #populate header
     #print msg.header.frame_id
     colored_cells.header.frame_id = msg.header.frame_id
@@ -23,40 +26,6 @@ def getCells(msg):
     print "CELL WIDTH: " + str(colored_cells.cell_width)
     colored_cells.cell_height = cell_size
     print str(msg.info.origin)
-    
-    if msg:
-        data = msg.data
-        print len(data)
-        #print data
-        #get size of map
-        numCols = msg.info.width
-        print numCols
-        numRows = msg.info.height
-        print numRows
-        numCells = numCols * numRows
-        print numCells
-        
-        #iterate through 2d matrix
-        for x in range(0,numCells):
-            #if unexplored cell
-            #print x
-            if data[x] is (-1):
-                #create point
-                point = Point()
-                #print "found a cell! " + str(x)
-                point.x = float(x % numCols) * cell_size #column number * meters/cell
-                #print str(point.x)
-                point.y = float(x // numCols) * cell_size #row number * meters/cell
-                #print str(point.y)
-                point.z = 0 #or 1 needed???
-                #add point to colored_cells
-                colored_cells.cells.append(point)
-            #print data[x]
-
-#function that adds a buffer to all the obstacles
-def getBuffer(cells):
-    global buffer_cells
-    buffer_cells = GridCells()
     
     #populate header
     #print msg.header.frame_id
@@ -85,19 +54,31 @@ def getBuffer(cells):
             #if unexplored cell
             #print x
             if data[x] is (-1):
+                for all points that are at most 40 cells away 
                 #create point
-                buff = Point()
+                point = Point()
                 #print "found a cell! " + str(x)
-                buff.x = float(x % numCols) * cell_size #column number * meters/cell
+                point.x = float(x % numCols) * cell_size #column number * meters/cell
                 #print str(point.x)
-                buff.y = float(x // numCols) * cell_size #row number * meters/cell
+                point.y = float(x // numCols) * cell_size #row number * meters/cell
                 #print str(point.y)
-                buff.z = 0 #or 1 needed???
+                point.z = 0 #or 1 needed???
                 #add point to colored_cells
-                buffer_cells.cells.append(buff)
+                colored_cells.cells.append(point)
+                #expands the obstacle
+                makeBuffer(x)
             #print data[x]
-    
 
+#function that takes in a point, and makes a 4x4 grid around it to 
+def makeBuffer(point)
+    for i in range (-4, 4)
+        for j in range(-4, 4)
+            buff = Point()
+            buff.x = float((x+i) % numCols) * cell_size 
+            buff.y = float((x+j) //numCols) * cell_size
+            buff.z = 0
+            buffer_cells.cells.append(buff)
+            
 # This is the program's main function
 if __name__ == '__main__':
     global pub
