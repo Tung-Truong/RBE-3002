@@ -48,8 +48,8 @@ def getCells(msg):
 		for x in range(0,numCells):
 		    #if unexplored cell
 		    #print x
-		    d = data[x]
-		    if (d > 60) or (d is -1):
+		    #d = data[x]
+		    if isFrontier(x):
 		        #create point
 		        point = Point()
 		        #print "found a cell! " + str(x)
@@ -90,29 +90,54 @@ def expandPoint(x,y):
 				val = mapdata.data[index]
 
 			if (val < 40) and (val is not -1):
-				expanded_cells.cells.append(pnt)
+				expanded_cells.add(pnt)
 
 	#expanded_cells.cells.append(list(set(temp_cells)))
 
 #expands given GridCells.cells and updates expanded_cells
 def expansion(cells):
 	global expanded_cells
+	global expanded_gridcells
 
 	starting_cells = cells #save local as to not affect for loop
 	n = len(starting_cells)
 	print "# cells: ", str(n)
 	count = 0
 
-	expanded_cells = GridCells()
-	expanded_cells.header.frame_id = "map"
-	expanded_cells.cell_width = 1
-	expanded_cells.cell_height = 1
+	expanded_cells = set()
+	
 
 	for c in starting_cells:
 		#print "Expanding: ", "(",c.x,",",c.y,")"
-		print "Cell #: ",count, " out of ", n
+		#print "Cell #: ",count, " out of ", n
 		expandPoint(c.x, c.y)
 		count += 1
+
+	expanded_gridcells = GridCells()
+	expanded_gridcells.header.frame_id = "map"
+	expanded_gridcells.cell_width = 1
+	expanded_gridcells.cell_height = 1
+	expanded_gridcells.cells = list(expanded_cells)
+
+#returns true if cell is immediately bordered by open cell on map
+def isFrontier(index):
+	global mapdata
+
+	#get map info
+	cols = mapdata.info.width
+	d = mapdata.data
+
+	val = d[index]
+	val_L = d[index - 1]
+	val_R = d[index + 1]
+	val_U = d[index - cols]
+	val_D = d[index + cols]
+	a = (val_D < 40) and (val_D > -1)
+	b = (val_R < 40) and (val_R > -1)
+	c = (val_L < 40) and (val_U > -1)
+	d = (val_D < 40) and (val_D > -1)
+	e = (val > 60) or (val is -1)
+	return ((a or b or c or d) and e)
 
 # This is the program's main function
 if __name__ == '__main__':
@@ -120,13 +145,14 @@ if __name__ == '__main__':
     global pub_exp_cells
     global colored_cells
     global expanded_cells
+    global expanded_gridcells
     global mapdata
 
     # Change this node name to include your username
     rospy.init_node('color_cells_node')
     
     #pub to gridcells topic in rviz display
-    pub = rospy.Publisher('/move_base/local_costmap/obstacles', GridCells, queue_size = 10)
+    pub = rospy.Publisher('/colored_cells', GridCells, queue_size = 10)
     
     #pub to gridcells topic 
     pub_exp_cells = rospy.Publisher('/expanded_cells', GridCells , queue_size = 10)
@@ -142,7 +168,7 @@ if __name__ == '__main__':
     #expand all the found points
     expansion(colored_cells.cells)
     #expanded_cells.cells = list(set(expanded_cells.cells))
-    pubExpCells(expanded_cells)
+    pubExpCells(expanded_gridcells)
 
     rospy.sleep(rospy.Duration(0.5, 0))
 
