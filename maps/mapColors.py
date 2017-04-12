@@ -48,7 +48,8 @@ def getCells(msg):
 		for x in range(0,numCells):
 		    #if unexplored cell
 		    #print x
-		    if data[x] > (60):
+		    d = data[x]
+		    if (d > 60) or (d is -1):
 		        #create point
 		        point = Point()
 		        #print "found a cell! " + str(x)
@@ -60,17 +61,38 @@ def getCells(msg):
 		        #add point to colored_cells
 		        colored_cells.cells.append(point)
 
+def pointToIndex(x,y):
+    global mapdata
+    
+    #get map info
+    cols = mapdata.info.width
+    rows = mapdata.info.height
+    #res = grid.info.resolution #m/cell, might come in handy later
+   
+    index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
+    #print index
+    return int(index)
+
 #function that takes in a point, and makes a 4x4 grid around it to 
 def expandPoint(x,y):
     global expanded_cells
+    global mapdata
+
     for i in range(-4, 4):
         for j in range(-4, 4):
 			pnt = Point()
 			pnt.x = (x + i)  
 			pnt.y = (y + j)
 			pnt.z = 0
-			#if (pnt not in expanded_cells.cells):
-			expanded_cells.cells.append(pnt)
+
+			index = pointToIndex(pnt.x,pnt.y)
+			if index < len(mapdata.data):
+				val = mapdata.data[index]
+
+			if (val < 40) and (val is not -1):
+				expanded_cells.cells.append(pnt)
+
+	#expanded_cells.cells.append(list(set(temp_cells)))
 
 #expands given GridCells.cells and updates expanded_cells
 def expansion(cells):
@@ -119,6 +141,7 @@ if __name__ == '__main__':
     
     #expand all the found points
     expansion(colored_cells.cells)
+    #expanded_cells.cells = list(set(expanded_cells.cells))
     pubExpCells(expanded_cells)
 
     rospy.sleep(rospy.Duration(0.5, 0))
