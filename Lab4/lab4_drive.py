@@ -25,6 +25,23 @@ class Node:
 		ret = bool(getCellValue(self.x, self.y) < 50)
 		return ret
 
+class myPriorityQueue():
+	
+	def __init__(self):
+		self.pq = queue.PriorityQueue()
+
+	def push(self, node):
+		val = getCellValue(n.x, n.y)
+		if node is in visited:
+			continue
+		elif ((val > 20) or (val < 0)):
+			continue
+		else:
+			self.pq.put((node.fCost, node))
+
+	def pop(self):
+		return self.pq.get()[1]
+
 #returns data (probability) of map cell given (x,y) coord
 def getCellValue(x,y):
     global mapdata
@@ -181,10 +198,10 @@ def eucl2(node, end):												# distance between node and end
 	dist = math.sqrt((nx-ix)**2 + (ny - iy)**2)
 	return dist
 
-
 def getNeighbors(anode):
 	global openSet
 	global closedSet
+	global set_of_cells
 	#gets list of neighboring nodes (4connected)
 
 	#get x and y
@@ -193,30 +210,28 @@ def getNeighbors(anode):
 
 	#make a node for ea direction
 	nodeN = Node(x, y + 1, 0, 0, anode)
-	nodeN.calcgCost
-	nodeN.calcfCost
 	nodeS = Node(x, y - 1, 0, 0, anode)
-	nodeS.calcgCost
-	nodeS.calcfCost
 	nodeW = Node(x - 1, y, 0, 0, anode)
-	nodeW.calcgCost
-	nodeW.calcfCost
 	nodeE = Node(x + 1, y, 0, 0, anode)
-	nodeE.calcgCost
-	nodeE.calcfCost
 
 	nodelist = [nodeN, nodeS, nodeW, nodeE]
 
+	#check all neigbors to see if they are obstacles
 	for n in nodelist:
-		val = getCellValue(n.x, n.y)
-		if ((val > 40) or (val < 0)):
+		#val = getCellValue(n.x, n.y)
+		#if ((val > 40) or (val < 0)):
+		p = Point()
+		p.x = n.x
+		p.y = n.y
+		p.z = 0
+
+		if p in set_of_cells:
 			nodelist.remove(n)
 			#openSet.remove(n)
 			#closedSet.append(n)
 			print "OBSTACLE @ ", n.x, ",", n.y
 
 	return nodelist
-
 
 def lowestFcost(nodes):
 	#iterate through node list and get lowest
@@ -272,18 +287,20 @@ def toRes(x):
 
 ###############################################
 
-def main():	
+def main():
 	global ipose
 	global gl
 	#global pub_pose
 	global start
-	global goal
-	
+	global goal	
+	global buffer_cells
+	global set_of_cells
 
+	waitForBuffer()
 
 	#get start and goal from rviz
-	print "ipose - x rnd", toRes(ipose.pose.position.x)
-	print "ipose - x raw", ipose.pose.position.x
+	#print "ipose - x rnd", toRes(ipose.pose.position.x)
+	#print "ipose - x raw", ipose.pose.position.x
 	#round x and y to grid resolution
 	start = Node(toRes(ipose.pose.position.x), toRes(ipose.pose.position.y), 0,0,0)
 	start.calcfCost
@@ -300,45 +317,7 @@ def main():
 	printPath(wp)
 	pubWaypoints(wp)
 
-	prevNode = start #initialize starting node
-	lastNode = goal
-    numWaypoints = len(wp)
-    
-	#travel to waypoints
-	for i in range(0,numWaypoints):
-	    wnode = wp[i]
-	    
-	    if wnode is wp[numWaypoints]:
-	        #special case for last node
-	        break
-	        
-	    nextNode = wp[i+1]
-	    
-		res_scale = 20
-		#ps = PoseStamped()
-		#ps.header.frame_id = "map"
-		#ps.pose.position.x = wnode.x / res_scale
-		#ps.pose.position.y = wnode.y / res_scale 
-		#print "going to pose: ", "(",wnode.x,",", wnode.y,")"
-		
-		directionIn = getDirection(prevNode.x, prevNode.y, wnode.x, wnode.y)
-		directionOut = getDirection(wnode.x, wnode.y, nextNode.x, nextNode.y)
-		
-		angle = (math.pi / 2)
-		if turnCW(directionIn,directionOut):
-		    angle *= -1
-		###~~~NEED TO MODIFY ROTATE TO USE ABSOLUTE ANGLE!!!!!!~~~~~###
-		rotate(angle)
-		
-		
-		#drive straight
-		dist = eucl2(prevNode,wnode)
-		print "dist to go: ", str(dist), "m, To scale: ", (dist / res_scale)
-		driveStraight(dist / res_scale)
-		print "at waypoint!"
-		prevNode = wnode
-		break
-		
+	
 
 	print "DONE!"
 	
@@ -350,6 +329,22 @@ def turnCW(din,dout):
      d = (din is "y-") and (dout is "x-")
      return (a or b or c or d)
      
+#waits for buffer cells to be received
+def waitForBuffer():
+	global buffer_cells
+	global set_of_cells
+
+	buffer_cells = GridCells()
+
+	print "WAITING FOR BUFFER CELLS..."
+	while not buffer_cells.cells:
+		#wait
+		if buffer_cells.cells:
+			#print "BUFF CELLS = ", buffer_cells
+			break
+	print "GOT BUFFER!"
+
+	set_of_cells = set(buffer_cells.cells)
 
 
 #gets direction based on start and end x,y coord, returns string "x-","x+","y-", or "y+"
@@ -451,7 +446,49 @@ def driveStraight(distance):
                 publishTwist(speed, 0) #keep driving
             rospy.sleep(0.15)
             #print "GO!"
-              
+   
+#drives to waypoint and turns to face next one
+def driveToWaypoint(start_node, end_node):
+	prevNode = start_node #initialize starting node
+	lastNode = end_node
+	numWaypoints = len(wp)
+
+	#travel to waypoints
+	for i in range(0,numWaypoints):
+			wnode = wp[i]
+		
+			if wnode is wp[numWaypoints]:
+				#special case for last node
+				break
+		
+			nextNode = wp[i+1]
+		
+			res_scale = 20
+			#ps = PoseStamped()
+			#ps.header.frame_id = "map"
+			#ps.pose.position.x = wnode.x / res_scale
+			#ps.pose.position.y = wnode.y / res_scale 
+			#print "going to pose: ", "(",wnode.x,",", wnode.y,")"
+
+			directionIn = getDirection(prevNode.x, prevNode.y, wnode.x, wnode.y)
+			directionOut = getDirection(wnode.x, wnode.y, nextNode.x, nextNode.y)
+
+			angle = (math.pi / 2)
+			if turnCW(directionIn,directionOut):
+				angle *= -1
+			###~~~NEED TO MODIFY ROTATE TO USE ABSOLUTE ANGLE!!!!!!~~~~~###
+			rotate(angle)
+
+
+			#drive straight
+			dist = eucl2(prevNode,wnode)
+			print "dist to go: ", str(dist), "m, To scale: ", (dist / res_scale)
+			driveStraight(dist / res_scale)
+			print "at waypoint!"
+			prevNode = wnode
+			break
+		
+
 #Accepts an angle RADIANS and makes the robot rotate around it.
 def rotate(angle):
     global odom_list
@@ -524,7 +561,11 @@ def timerCallback(event):
     #convert yaw to degrees
     pose.pose.orientation.z = yaw
 	
-
+#updates buffer with cells from our frontier cell expansion
+def updateBuffer(msg):
+	global buffer_cells
+	if msg:
+		buffer_cells = msg
 
 def printPath(path):
 	for p in path:
@@ -571,6 +612,8 @@ if __name__ == '__main__':
 	goal_sub = rospy.Subscriber('/goalpose', PoseStamped, gl, queue_size=1)
 	init_sub = rospy.Subscriber('/startpose', PoseWithCovarianceStamped, ipose, queue_size=1)
 	map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)	
+	buff_sub = rospy.Subscriber('/expanded_cells', GridCells, updateBuffer, queue_size=1)
+
     #bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
 	#goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, readGoal, queue_size=1) # Callback function to handle bumper events
 
