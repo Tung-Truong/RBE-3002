@@ -1,3 +1,4 @@
+import Queue as queue
 import rospy, math, tf, numpy
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Point, Twist
 from tf.transformations import euler_from_quaternion
@@ -31,16 +32,11 @@ class myPriorityQueue():
 		self.pq = queue.PriorityQueue()
 
 	def push(self, node):
-		val = getCellValue(n.x, n.y)
-		if node is in visited:
-			continue
-		elif ((val > 20) or (val < 0)):
-			continue
-		else:
 			self.pq.put((node.fCost, node))
 
 	def pop(self):
 		return self.pq.get()[1]
+
 
 #returns data (probability) of map cell given (x,y) coord
 def getCellValue(x,y):
@@ -79,65 +75,75 @@ def indexToPoint(index):
 	return node
 
 
-def astar(start, goal):													# returns zero if no path from start to goal otherwise returns path from start to goal
-	global openSet
-	global closedSet
 
-	current = start														
-	
-	closedSet = []     													# Already Evaluated Nodes initialized to zero
-	openSet = [start]												# Unevaluated but discovered nodes 
-	
+def astar(start, goal):
+	global frontier
+	global visited
+
+	frontier = myPriorityQueue()
+	visited = list()
+	frontier.push(start)
+
+	current = start
+
 	neighbors = getNeighbors(start)
 
 	#add all nodes to openset that open?
 
-	while openSet:
+	print "STARTING ASTAR..."
+	print "Start = ", "(",start.x, ",",start.y,")"
+	print "Goal = ", "(",goal.x, ",",goal.y,")"
+
+	rospy.sleep(rospy.Duration(3, 0))
+
+	while frontier: #<---DOES THIS WORK WITH PQ!!!????
 
 		#get lowest cost from openSet
-		current = lowestFcost(openSet)														# goes to the node in openset having the lowest fCost
+		current = frontier.pop()
+		print "current lowest: ",  "(",current.x, ",",current.y,")"
 
-		 										# then return the path back to the start
-
-		openSet.remove(current) 										# update each of the sets
-		
 
 		neighbors = getNeighbors(current)
 		
 
 		for neighbor in neighbors:
-			if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
-				return repath(current)
+
+			#print "Checking Neighbor = ", "(",neighbor.x, ",",neighbor.y,")"
+			
+			if(neighbor.x is goal.x) and (neighbor.y is goal.y):											# if current is goal ->
+				return repath(neighbor)
+
+			#print "Current Gcost = ", current.gCost
 
 			neighbor.gCost = current.gCost + 1 #dist_between(current,neighbor)
-			
 			neighbor.fCost = neighbor.gCost + eucl(neighbor)
+			#print "Neighbor Fcost = ", current.fCost
 
-			if inOpenSet(neighbor):
-				continue
-			if inClosedSet(neighbor): 									# ignores already evaluated nodes
+			#if inFrontier(neighbor): #FIX ME!!!!!!
+			#	continue
+			if inVisited(neighbor): 									# ignores already evaluated nodes
 				continue
 
 			else:
-				openSet.append(neighbor) 	
+				frontier.push(neighbor) 	
 
-
-		closedSet.append(current)
+		visited.append(current)
+		#rospy.sleep(rospy.Duration(1, 0))
 	return "Error in ASTAR"
 	##pass
 
-def inOpenSet(n):
+def inFrontier(n):
 	#true = skip
-	global openSet
-	for q in openSet:
+	global frontier
+	for q in list(frontier):
 		if (q.x is n.x) and (q.y is n.y) and (q.fCost <= n.fCost):
 			return True
 	return False
 
-def inClosedSet(n):
+def inVisited(n):
 	#true = skip
-	global closedSet
-	for q in closedSet:
+	global visited
+	for q in visited:
 		if (q.x is n.x) and (q.y is n.y) and (q.fCost <= n.fCost):
 			return True
 	return False
@@ -199,8 +205,8 @@ def eucl2(node, end):												# distance between node and end
 	return dist
 
 def getNeighbors(anode):
-	global openSet
-	global closedSet
+	global frontier
+	global visited
 	global set_of_cells
 	#gets list of neighboring nodes (4connected)
 
@@ -217,19 +223,17 @@ def getNeighbors(anode):
 	nodelist = [nodeN, nodeS, nodeW, nodeE]
 
 	#check all neigbors to see if they are obstacles
-	for n in nodelist:
-		#val = getCellValue(n.x, n.y)
-		#if ((val > 40) or (val < 0)):
-		p = Point()
-		p.x = n.x
-		p.y = n.y
-		p.z = 0
+	#for n in nodelist:
+	#	val = getCellValue(n.x, n.y)
+	#	if ((val > 40) or (val < 0)):
+		#p = Point()
+		#p.x = n.x
+		#p.y = n.y
+		#p.z = 0
 
-		if p in set_of_cells:
-			nodelist.remove(n)
-			#openSet.remove(n)
-			#closedSet.append(n)
-			print "OBSTACLE @ ", n.x, ",", n.y
+		#if p in set_of_cells:
+	#		nodelist.remove(n)
+	#		print "OBSTACLE @ ", n.x, ",", n.y
 
 	return nodelist
 
@@ -253,15 +257,18 @@ def lowestFcost(nodes):
 
 def gl(msg):															# stores goal pose as global			
 	global gl
+	global got_gl
 	if msg:
 		gl = msg.pose
+		got_gl = True
 		print gl
 
 def ipose(msg):															# stores start pose as global
 	global ipose
+	global got_ipose
 	if msg:
 		ipose = msg.pose
-		
+		got_ipose = True
 		print ipose
 
 def gcells(msg):															# stores the elements of GridCells as a global
@@ -296,6 +303,9 @@ def main():
 	global buffer_cells
 	global set_of_cells
 
+
+	waitForPoses()
+
 	waitForBuffer()
 
 	#get start and goal from rviz
@@ -303,12 +313,15 @@ def main():
 	#print "ipose - x raw", ipose.pose.position.x
 	#round x and y to grid resolution
 	start = Node(toRes(ipose.pose.position.x), toRes(ipose.pose.position.y), 0,0,0)
-	start.calcfCost
+	
 	
 	#print "goal - x rnd", toRes(gl.position.x)
 	goal = Node(toRes(gl.position.x), toRes(gl.position.y),0,0,0)
+	start.calcfCost()
 	#pub_pose.publish(ipose)
 	path = astar(start,goal)
+
+	print "ASTAR DONE"
 
 	printPath(path)
 	drawPath(path) #publishes
@@ -317,7 +330,8 @@ def main():
 	printPath(wp)
 	pubWaypoints(wp)
 
-	
+	#for w in wp:
+		#driveToWaypoint(start,goal)
 
 	print "DONE!"
 	
@@ -346,6 +360,21 @@ def waitForBuffer():
 
 	set_of_cells = set(buffer_cells.cells)
 
+def waitForPoses():
+	global got_gl
+	global got_ipose
+
+	print "WAITING FOR POSES..."
+
+	got_gl = False
+	got_ipose = False
+
+	while not (got_gl and got_ipose):
+		continue
+
+	print "GOT POSES!"
+
+
 
 #gets direction based on start and end x,y coord, returns string "x-","x+","y-", or "y+"
 def getDirection(xi,yi,xf,yf):
@@ -359,7 +388,7 @@ def getDirection(xi,yi,xf,yf):
             return "x+"
         else:
             return "x-"
-    
+  
 
 #################################################
 
@@ -618,12 +647,12 @@ if __name__ == '__main__':
 	#goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, readGoal, queue_size=1) # Callback function to handle bumper events
 
     # Use this object to get the robot's Odometry 
-	odom_list = tf.TransformListener()
+	##odom_list = tf.TransformListener()
 
     #make the robot keep doing something...
-	rospy.Timer(rospy.Duration(0.01), timerCallback)
+	##rospy.Timer(rospy.Duration(0.01), timerCallback)
     # Use this command to make the program wait for some seconds
-	rospy.sleep(rospy.Duration(8, 0))
+	rospy.sleep(rospy.Duration(1, 0))
 
 	print "begin main"
 	
