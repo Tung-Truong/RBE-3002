@@ -15,6 +15,7 @@ def pubExpCells(cells):
 def getCells(msg):
     global colored_cells #cell map for obstacles
     global mapdata
+    global dictionary
     
     if msg: 
 		colored_cells = GridCells()
@@ -38,17 +39,19 @@ def getCells(msg):
 		#print data
 		#get size of map
 		numCols = msg.info.width
-		print numCols
+		print "NUM COLS GET: ", numCols
 		numRows = msg.info.height
 		print numRows
-		numCells = numCols * numRows
+		numCells = (numCols * numRows) 
 		print numCells
+		
+		dictionary = dict()
 
-		#iterate through 2d matrix
+		#iterate through 1d matrix
 		for x in range(0,numCells):
 		    #if unexplored cell
 		    #print x
-		    #d = data[x]
+		    d = data[x]
 		    if isFrontier(x):
 		        #create point
 		        point = Point()
@@ -60,16 +63,20 @@ def getCells(msg):
 		        point.z = 0 #or 1 needed???
 		        #add point to colored_cells
 		        colored_cells.cells.append(point)
-
+		        
+		        dictionary[point] = d
+		        
+#takes in x and y in col and row NUMBER
 def pointToIndex(x,y):
     global mapdata
     
     #get map info
     cols = mapdata.info.width
-    rows = mapdata.info.height
+    print "NUM COLS PT INDEX: ",cols
+    #rows = mapdata.info.height
     #res = grid.info.resolution #m/cell, might come in handy later
    
-    index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
+    index = ((y) * cols) + (x) #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     #print index
     return int(index)
 
@@ -80,21 +87,22 @@ def expandPoint(x,y):
 
     for i in range(-1, 2):
         for j in range(-1, 2):
-			pnt = Point()
-			pnt.x = (x + i)  
-			pnt.y = (y + j)
-			pnt.z = 0
+            pnt = Point()
+            pnt.x = (x + (i * 0.25))  
+            pnt.y = (y + (j * 0.25))
+            pnt.z = 0
+            print "(",pnt.x,",",pnt.y,")"
+            
 
-			index = pointToIndex(pnt.x,pnt.y)
-			l = len(mapdata.data)
-			#check if in bounds
-			if (index < l) and (index > 0):
-				val = mapdata.data[index]
-				#check if is open cell
-				if (val < 40) and (val is not -1):
-					expanded_cells.add(pnt)
-
-	#expanded_cells.cells.append(list(set(temp_cells)))
+            index = pointToIndex(pnt.x * 4,pnt.y * 4)
+            l = len(mapdata.data)
+            #print "Index: ",index," of ",l
+            #check if in bounds
+            if (index < l) and (index >= 0):
+                val = mapdata.data[index]
+                #check if is open cell
+                if (val < 40) and (val is not -1):
+                    expanded_cells.add(pnt)
 
 #expands given GridCells.cells and updates expanded_cells
 def expansion(cells):
@@ -117,8 +125,8 @@ def expansion(cells):
 
 	expanded_gridcells = GridCells()
 	expanded_gridcells.header.frame_id = "map"
-	expanded_gridcells.cell_width = 1
-	expanded_gridcells.cell_height = 1
+	expanded_gridcells.cell_width = 0.25
+	expanded_gridcells.cell_height = 0.25
 	expanded_gridcells.cells = list(expanded_cells)
 
 #returns true if cell is immediately bordered by open cell on map
