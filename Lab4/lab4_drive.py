@@ -34,7 +34,6 @@ def getCellValue(x,y):
     
     #get map info
     cols = mapdata.info.width
-    rows = mapdata.info.height
    
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return mapdata.data[index] 
@@ -44,8 +43,6 @@ def getCostValue(x,y):
     
     #get map info
     cols = costmap.info.width
-    rows = costmap.info.height
-   
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return costmap.data[index] 
 
@@ -54,8 +51,7 @@ def getCostIndex(x,y):
     
     #get map info
     res = costmap.info.resolution #m/cell, might come in handy later
-    cols = int(costmap.info.width / res)
-    rows = int(costmap.info.height / res)
+    cols = costmap.info.width
    
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return index 
@@ -64,28 +60,12 @@ def pointToIndex(x,y):
     global mapdata
     
     #get map info
-    res = mapdata.info.resolution #m/cell, might come in handy later
-    cols = int(mapdata.info.width / res)
-    rows = int(mapdata.info.height / res)
+    cols = mapdata.info.width
     
    
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return index 
 
-
-def indexToPoint(index):
-	global mapdata
-	#get map info
-    res = mapdata.info.resolution #m/cell, might come in handy later
-    cols = int(mapdata.info.width / res)
-    rows = int(mapdata.info.height / res)
-
-	y = index % cols
-	x = index // cols
-	node = node()
-	node.x = x
-	node.y = y
-	return node
 
 def astar(start, goal):													# returns zero if no path from start to goal otherwise returns path from start to goal
 	global openSet
@@ -104,12 +84,8 @@ def astar(start, goal):													# returns zero if no path from start to goal
 	while openSet:
 
 		#get lowest cost from openSet
-		current = lowestFcost(openSet)														# goes to the node in openset having the lowest fCost
-
-		 										# then return the path back to the start
-
+		current = lowestFcost(openSet)														# goes to the node in openset having the lowest fCost	 										# then return the path back to the start
 		openSet.remove(current) 										# update each of the sets
-		
 
 		neighbors = getNeighbors(current)
 		
@@ -118,9 +94,9 @@ def astar(start, goal):													# returns zero if no path from start to goal
 			if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
 				return repath(current)
 
-			neighbor.gCost = current.gCost + 0.25
+			neighbor.gCost = current.gCost + 1
 			
-			neighbor.fCost = neighbor.gCost + eucl(neighbor) + (getCostValue(neighbor.x,neighbor.y) / 10)
+			neighbor.fCost = neighbor.gCost + eucl(neighbor) #+ (getCostValue(neighbor.x,neighbor.y) / 10)
 
 			if inOpenSet(neighbor):
 				continue
@@ -157,7 +133,7 @@ def manhattan(node):												# returns the manhattan distance
 	global start
 	x = abs(start.x - node.x)
 	y = abs(start.y - node.y)
-	return x + y
+	return (x + y)
 
 def dist_between(nodeA, nodeB):
 	x = abs(nodeA.x - nodeB.x)
@@ -190,8 +166,8 @@ def drawPath(nodelist):
 	for n in nodelist:
 		posestp = PoseStamped()
 		posestp.header.frame_id = "map"
-		posestp.pose.position.x = n.x
-		posestp.pose.position.y = n.y
+		posestp.pose.position.x = n.x * 0.25
+		posestp.pose.position.y = n.y * 0.25 #to meters
 		p.poses.append(posestp)
 	pub_path.publish(p)
 
@@ -204,7 +180,7 @@ def eucl(node):												# distance between node and goal
 	iy = node.y
 	nx = goal.x
 	ny = goal.y
-	dist = math.sqrt((nx-ix)**2 + (ny - iy)**2)
+	dist = math.sqrt((nx-ix)**2 + (ny - iy)**2) #to scale to m 0.25
 	return dist
 
 def eucl2(node, end):												# distance between node and end
@@ -227,20 +203,20 @@ def getNeighbors(anode):
 
 	#make a node for ea direction
 	nodeN = Node(x, y + 1, 0, 0, anode)
-	nodeN.calcgCost
-	nodeN.calcfCost
+	nodeN.calcgCost()
+	nodeN.calcfCost()
 
 	nodeS = Node(x, y - 1, 0, 0, anode)
-	nodeS.calcgCost
-	nodeS.calcfCost
+	nodeS.calcgCost()
+	nodeS.calcfCost()
 
 	nodeW = Node(x - 1, y, 0, 0, anode)
-	nodeW.calcgCost
-	nodeW.calcfCost
+	nodeW.calcgCost()
+	nodeW.calcfCost()
 
 	nodeE = Node(x + 1, y, 0, 0, anode)
-	nodeE.calcgCost
-	nodeE.calcfCost
+	nodeE.calcgCost()
+	nodeE.calcfCost()
 
 	nodelist = [nodeN, nodeS, nodeW, nodeE]
 
@@ -248,15 +224,15 @@ def getNeighbors(anode):
 		#val = getCellValue(n.x, n.y)
 		#if ((val > 60) or (val < 0)):
 		pnt = Point()
-		pnt.x = n.x 
-		pnt.y = n.y
+		pnt.x = n.x * 0.25
+		pnt.y = n.y * 0.25
 		pnt.z = 0
 
 		if pnt in buffer_cells.cells:
 			nodelist.remove(n)
 			#openSet.remove(n)
 			#closedSet.append(n)
-			print "OBSTACLE @ ", n.x, ",", n.y
+			print "OBSTACLE @ ", pnt.x, ",", pnt.y
 
 	return nodelist
 
@@ -274,7 +250,7 @@ def lowestFcost(nodes):
 
 	#all other nodes to closed set and take off open set to not recalculate
 	#for m in nodes:
-	#	if m is not lowest_node:
+	#	if m is not lowest_node:s
 	#		closedSet.append(m)
 	#		openSet.remove(m)
 	return lowest_node
@@ -314,7 +290,8 @@ def ogrid(msg):															# stores the elements of GridCells as a global
 		#print str(Node(166,258,0,0,0).isValid)
 
 def toRes(x):
-	return int(x) 
+    x = (round(x * 4) / 4)
+    return int(x*4) 
 
 def updatelCost(msg):
 	global goal
@@ -497,14 +474,14 @@ def pubWaypoints(nodes):
 	global pub_points
 	g = GridCells()
 	g.header.frame_id = "map"
-	g.cell_height = 1
-	g.cell_width = 1
+	g.cell_height = 0.25
+	g.cell_width = 0.25
 
 
 	for n in nodes:
 		point = Point()
-		point.x = n.x
-		point.y = n.y
+		point.x = n.x * 0.25
+		point.y = n.y * 0.25
 		point.z = 0
 		g.cells.append(point)
 	pub_points.publish(g)
@@ -676,7 +653,7 @@ def timerCallback(event):
     pose.pose.orientation.z = yaw
     
     #publish new costmap
-    pub_our_cost.publish(costmap)
+    #pub_our_cost.publish(costmap)
 	
 #updates buffer with cells from our frontier cell expansion
 def updateBuffer(msg):
@@ -685,7 +662,7 @@ def updateBuffer(msg):
 		buffer_cells = msg
 
 def printPath(path):
-	for p in path:
+	for p in path: #path as list of nodes
 		print "(",p.x,",",p.y,")->"
 
 
