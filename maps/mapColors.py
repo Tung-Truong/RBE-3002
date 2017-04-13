@@ -78,8 +78,8 @@ def expandPoint(x,y):
     global expanded_cells
     global mapdata
 
-    for i in range(-2, 3):
-        for j in range(-2, 3):
+    for i in range(-1, 2):
+        for j in range(-1, 2):
 			pnt = Point()
 			pnt.x = (x + i)  
 			pnt.y = (y + j)
