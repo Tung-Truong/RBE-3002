@@ -2,8 +2,9 @@ import Queue as queue
 import rospy, math, tf, numpy
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Point, Twist
 from tf.transformations import euler_from_quaternion
-from nav_msgs.msg import GridCells, OccupancyGrid,  Path, Odometry, OccupancyGridUpdates
+from nav_msgs.msg import GridCells, OccupancyGrid,  Path, Odometry
 from tf.transformations import euler_from_quaternion
+from map_msgs.msg import OccupancyGridUpdate
 
 class Node:
 	def __init__(self, x, y, gCost, fCost, cameFrom):
@@ -52,8 +53,9 @@ def getCostIndex(x,y):
     global costmap
     
     #get map info
-    cols = costmap.info.width
-    rows = costmap.info.height
+    res = costmap.info.resolution #m/cell, might come in handy later
+    cols = int(costmap.info.width / res)
+    rows = int(costmap.info.height / res)
    
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return index 
@@ -62,9 +64,10 @@ def pointToIndex(x,y):
     global mapdata
     
     #get map info
-    cols = mapdata.info.width
-    rows = mapdata.info.height
-    #res = grid.info.resolution #m/cell, might come in handy later
+    res = mapdata.info.resolution #m/cell, might come in handy later
+    cols = int(mapdata.info.width / res)
+    rows = int(mapdata.info.height / res)
+    
    
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return index 
@@ -72,9 +75,10 @@ def pointToIndex(x,y):
 
 def indexToPoint(index):
 	global mapdata
-	#gets map info
-	cols = mapdata.info.width
-	rows = mapdata.info.height
+	#get map info
+    res = mapdata.info.resolution #m/cell, might come in handy later
+    cols = int(mapdata.info.width / res)
+    rows = int(mapdata.info.height / res)
 
 	y = index % cols
 	x = index // cols
@@ -114,7 +118,7 @@ def astar(start, goal):													# returns zero if no path from start to goal
 			if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
 				return repath(current)
 
-			neighbor.gCost = current.gCost + 1
+			neighbor.gCost = current.gCost + 0.25
 			
 			neighbor.fCost = neighbor.gCost + eucl(neighbor) + (getCostValue(neighbor.x,neighbor.y) / 10)
 
@@ -175,7 +179,9 @@ def repath(node):
 def updateCostmap(msg):
     global costmap
     if msg:
-        costmap = msg
+    	scaled_map = msg
+    	scaled_map.info.resolution = 1
+        costmap = scaled_map
         
 
 def drawPath(nodelist):
@@ -311,57 +317,61 @@ def toRes(x):
 	return int(x) 
 
 def updatelCost(msg):
-    global goal
-    global costmap
-    global start
-    global pose
-    
-    if(msg):
-        print "LOCAL COST UPDATE!!!"
-        publishTwist(0, 0)
-        
-        d = msg.data
-        
-        x_from_start = pose.pose.position.x
-        y_from_start = pose.pose.position.y
-        prev_start_x = start.x
-        prev_start_y = start.y
-        prev_start = start
-        scale = 3
-        
-        #go through all new costs received
-        for n in d:
-            #if obstacle
-            if (n > 60):
-                #first find position in global frame
-                x = int((prev_start_x + x_from_start + msg.x) * scale)
-                y = int((prev_start_y + y_from_start + msg.y) * scale)
-                print "x = ", x
-                print "y = ", y
-                
-                #get index of costmap that represents that position
-                index = getCostIndex(x,y)
-                
-                #put the data from the update into the appropriate position in the global frame
-                costmap.data[index] = n
+	global goal
+	global costmap
+	global start
+	global pose
+	global pub_our_cost
+
+	if(msg):
+		print "LOCAL COST UPDATE!!!"
+		publishTwist(0, 0)
+
+		d = msg.data
+
+		x_from_start = pose.pose.position.x
+		y_from_start = pose.pose.position.y
+		prev_start_x = start.x
+		prev_start_y = start.y
+		prev_start = start
+		scale = 3
+
+		#go through all new costs received
+		for n in d:
+			#if obstacle
+			if (n > 60):
+				#first find position in global frame
+				x = int((prev_start_x + x_from_start + msg.x) * scale)
+				y = int((prev_start_y + y_from_start + msg.y) * scale)
+				print "x = ", x
+				print "y = ", y
+				
+				#get index of costmap that represents that position
+				index = getCostIndex(x,y)
+				
+				#put the data from the update into the appropriate position in the global frame
+				costmap.data[index] = n
+		
         #set new start and rerun astar
-        
+        print "PUBLISHING UPDATED COSTMAP!!!"
+        pub_our_cost.publish(costmap)
+
         print "RESTARTING ASTAR!"
         start = Node((prev_start_x + x_from_start), (prev_start_y + y_from_start), 0,0, prev_start)
         path = astar(start,goal)
         print "GOT PATH!"
-	    printPath(path)
-	    drawPath(path) #publishes
+        printPath(path)
+        drawPath(path) #publishes
 
-	    wp = makeWaypoints(path)
-	    printPath(wp)
-	    pubWaypoints(wp)
-	    
-	    print "PAUSED ---- DID I WORK?"
-	    rospy.sleep(rospy.Duration(10, 0))
-	    print "RESUMING!"
-        
-        
+        wp = makeWaypoints(path)
+        printPath(wp)
+        pubWaypoints(wp)
+
+        print "PAUSED ---- DID I WORK?"
+
+        rospy.sleep(rospy.Duration(10, 0))
+        print "RESUMING!"
+
         
 
 #################-MAIN-##############################
@@ -385,8 +395,8 @@ def main():
 	#print "ipose - x raw", ipose.pose.position.x
 	#round x and y to grid resolution
 	start = Node(toRes(ipose.pose.position.x), toRes(ipose.pose.position.y), 0,0,0)
-	
-	
+
+
 	#print "goal - x rnd", toRes(gl.position.x)
 	goal = Node(toRes(gl.position.x), toRes(gl.position.y),0,0,0)
 	start.calcfCost()
@@ -404,10 +414,10 @@ def main():
 
 	#for w in wp:
 		#driveToWaypoint(start,goal)
-		
-		
-    rospy.sleep(rospy.Duration(20, 0))
-    
+
+	print "30 SEC REMAINING..."
+	rospy.sleep(rospy.Duration(30, 0))
+
 	print "DONE!"
 	
 #returns true if turns clockwise
@@ -664,6 +674,9 @@ def timerCallback(event):
     roll,pitch,yaw = euler_from_quaternion(q)
     #convert yaw to degrees
     pose.pose.orientation.z = yaw
+    
+    #publish new costmap
+    pub_our_cost.publish(costmap)
 	
 #updates buffer with cells from our frontier cell expansion
 def updateBuffer(msg):
@@ -720,7 +733,7 @@ if __name__ == '__main__':
 	map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)	
 	buff_sub = rospy.Subscriber('/expanded_cells', GridCells, updateBuffer, queue_size=1)
 	cost_sub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, updateCostmap, queue_size=1)
-	lcost_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdates, updatelCost, queue_size=1)
+	#lcost_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdate, updatelCost, queue_size=1)
     #bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
 	#goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, readGoal, queue_size=1) # Callback function to handle bumper events
 
@@ -728,7 +741,7 @@ if __name__ == '__main__':
 	##odom_list = tf.TransformListener()
 
     #make the robot keep doing something...
-	##rospy.Timer(rospy.Duration(0.01), timerCallback)
+	rospy.Timer(rospy.Duration(0.01), timerCallback)
     # Use this command to make the program wait for some seconds
 	rospy.sleep(rospy.Duration(1, 0))
 

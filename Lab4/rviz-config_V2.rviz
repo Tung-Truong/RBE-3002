@@ -6,7 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Global Costmap1
         - /Global Costmap1/Status1
         - /Local Costmap1
         - /Local Costmap1/Status1
@@ -320,13 +319,13 @@ Visualization Manager:
       Value: true
     - Alpha: 0.7
       Class: rviz/Map
-      Color Scheme: map
+      Color Scheme: costmap
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Local Costmap
-      Topic: /move_base/local_costmap/costmap
+      Topic: /our_costmap
       Unreliable: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -350,7 +349,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -0.0149996
+      Angle: -0.0399996
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
@@ -359,11 +358,11 @@ Visualization Manager:
         Value: false
       Name: Current View
       Near Clip Distance: 0.01
-      Scale: 9.6634
+      Scale: 35.3539
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: 16.1654
-      Y: 14.8107
+      X: 1.81139
+      Y: -1.0316
     Saved: ~
 Window Geometry:
   Displays:
@@ -381,5 +380,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1131
-  X: 267
-  Y: 80
+  X: 65
+  Y: 215
