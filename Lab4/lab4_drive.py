@@ -26,17 +26,6 @@ class Node:
 		ret = bool(getCellValue(self.x, self.y) < 50)
 		return ret
 
-class myPriorityQueue():
-	
-	def __init__(self):
-		self.pq = queue.PriorityQueue()
-
-	def push(self, node):
-			self.pq.put((node.fCost, node))
-
-	def pop(self):
-		return self.pq.get()[1]
-
 
 #returns data (probability) of map cell given (x,y) coord
 def getCellValue(x,y):
@@ -74,79 +63,70 @@ def indexToPoint(index):
 	node.y = y
 	return node
 
+def astar(start, goal):													# returns zero if no path from start to goal otherwise returns path from start to goal
+	global openSet
+	global closedSet
+	global buffer_cells
 
-
-def astar(start, goal):
-	global frontier
-	global visited
-
-	frontier = myPriorityQueue()
-	visited = list()
-	frontier.push(start)
-
-	current = start
-
+	current = start														
+	
+	closedSet = []     													# Already Evaluated Nodes initialized to zero
+	openSet = [start]												# Unevaluated but discovered nodes 
+	
 	neighbors = getNeighbors(start)
 
 	#add all nodes to openset that open?
 
-	print "STARTING ASTAR..."
-	print "Start = ", "(",start.x, ",",start.y,")"
-	print "Goal = ", "(",goal.x, ",",goal.y,")"
-
-	rospy.sleep(rospy.Duration(3, 0))
-
-	while frontier: #<---DOES THIS WORK WITH PQ!!!????
+	while openSet:
 
 		#get lowest cost from openSet
-		current = frontier.pop()
-		print "current lowest: ",  "(",current.x, ",",current.y,")"
+		current = lowestFcost(openSet)														# goes to the node in openset having the lowest fCost
 
+		 										# then return the path back to the start
+
+		openSet.remove(current) 										# update each of the sets
+		
 
 		neighbors = getNeighbors(current)
 		
 
 		for neighbor in neighbors:
+			if(current.x is goal.x) and (current.y is goal.y):											# if current is goal ->
+				return repath(current)
 
-			#print "Checking Neighbor = ", "(",neighbor.x, ",",neighbor.y,")"
+			neighbor.gCost = current.gCost + dist_between(current,neighbor)
 			
-			if(neighbor.x is goal.x) and (neighbor.y is goal.y):											# if current is goal ->
-				return repath(neighbor)
-
-			#print "Current Gcost = ", current.gCost
-
-			neighbor.gCost = current.gCost + 1 #dist_between(current,neighbor)
 			neighbor.fCost = neighbor.gCost + eucl(neighbor)
-			#print "Neighbor Fcost = ", current.fCost
 
-			#if inFrontier(neighbor): #FIX ME!!!!!!
-			#	continue
-			if inVisited(neighbor): 									# ignores already evaluated nodes
+			if inOpenSet(neighbor):
+				continue
+			if inClosedSet(neighbor): 									# ignores already evaluated nodes
 				continue
 
 			else:
-				frontier.push(neighbor) 	
+				openSet.append(neighbor) 	
 
-		visited.append(current)
-		#rospy.sleep(rospy.Duration(1, 0))
+
+		closedSet.append(current)
 	return "Error in ASTAR"
 	##pass
 
-def inFrontier(n):
+def inOpenSet(n):
 	#true = skip
-	global frontier
-	for q in list(frontier):
+	global openSet
+	for q in openSet:
 		if (q.x is n.x) and (q.y is n.y) and (q.fCost <= n.fCost):
 			return True
 	return False
 
-def inVisited(n):
+def inClosedSet(n):
 	#true = skip
-	global visited
-	for q in visited:
+	global closedSet
+	for q in closedSet:
 		if (q.x is n.x) and (q.y is n.y) and (q.fCost <= n.fCost):
 			return True
 	return False
+
 
 #manhtn dist from start to node
 def manhattan(node):												# returns the manhattan distance
@@ -205,9 +185,9 @@ def eucl2(node, end):												# distance between node and end
 	return dist
 
 def getNeighbors(anode):
-	global frontier
-	global visited
-	global set_of_cells
+	global openSet
+	global closedSet
+	global buffer_cells
 	#gets list of neighboring nodes (4connected)
 
 	#get x and y
@@ -216,26 +196,39 @@ def getNeighbors(anode):
 
 	#make a node for ea direction
 	nodeN = Node(x, y + 1, 0, 0, anode)
+	nodeN.calcgCost
+	nodeN.calcfCost
+
 	nodeS = Node(x, y - 1, 0, 0, anode)
+	nodeS.calcgCost
+	nodeS.calcfCost
+
 	nodeW = Node(x - 1, y, 0, 0, anode)
+	nodeW.calcgCost
+	nodeW.calcfCost
+
 	nodeE = Node(x + 1, y, 0, 0, anode)
+	nodeE.calcgCost
+	nodeE.calcfCost
 
 	nodelist = [nodeN, nodeS, nodeW, nodeE]
 
-	#check all neigbors to see if they are obstacles
-	#for n in nodelist:
-	#	val = getCellValue(n.x, n.y)
-	#	if ((val > 40) or (val < 0)):
-		#p = Point()
-		#p.x = n.x
-		#p.y = n.y
-		#p.z = 0
+	for n in nodelist:
+		#val = getCellValue(n.x, n.y)
+		#if ((val > 60) or (val < 0)):
+		pnt = Point()
+		pnt.x = n.x 
+		pnt.y = n.y
+		pnt.z = 0
 
-		#if p in set_of_cells:
-	#		nodelist.remove(n)
-	#		print "OBSTACLE @ ", n.x, ",", n.y
+		if pnt in buffer_cells.cells:
+			nodelist.remove(n)
+			#openSet.remove(n)
+			#closedSet.append(n)
+			print "OBSTACLE @ ", n.x, ",", n.y
 
 	return nodelist
+
 
 def lowestFcost(nodes):
 	#iterate through node list and get lowest
@@ -286,7 +279,7 @@ def ogrid(msg):															# stores the elements of GridCells as a global
 	if msg:
 		mapdata = msg
 		print "GOT MAP!"
-		print getCellValue(166,258)
+		#print getCellValue(166,258)
 		#print str(Node(166,258,0,0,0).isValid)
 
 def toRes(x):

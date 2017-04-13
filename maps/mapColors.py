@@ -78,19 +78,21 @@ def expandPoint(x,y):
     global expanded_cells
     global mapdata
 
-    for i in range(-4, 4):
-        for j in range(-4, 4):
+    for i in range(-2, 3):
+        for j in range(-2, 3):
 			pnt = Point()
 			pnt.x = (x + i)  
 			pnt.y = (y + j)
 			pnt.z = 0
 
 			index = pointToIndex(pnt.x,pnt.y)
-			if index < len(mapdata.data):
+			l = len(mapdata.data)
+			#check if in bounds
+			if (index < l) and (index > 0):
 				val = mapdata.data[index]
-
-			if (val < 40) and (val is not -1):
-				expanded_cells.add(pnt)
+				#check if is open cell
+				if (val < 40) and (val is not -1):
+					expanded_cells.add(pnt)
 
 	#expanded_cells.cells.append(list(set(temp_cells)))
 
@@ -128,16 +130,17 @@ def isFrontier(index):
 	d = mapdata.data
 
 	val = d[index]
-	val_L = d[index - 1]
-	val_R = d[index + 1]
-	val_U = d[index - cols]
-	val_D = d[index + cols]
-	a = (val_D < 40) and (val_D > -1)
-	b = (val_R < 40) and (val_R > -1)
-	c = (val_L < 40) and (val_U > -1)
-	d = (val_D < 40) and (val_D > -1)
+
+	#val_L = d[index - 1]
+	#val_R = d[index + 1]
+	#val_U = d[index - cols]
+	#val_D = d[index + cols]
+	#a = (val_D < 40) and (val_D > -1)
+	#b = (val_R < 40) and (val_R > -1)
+	#c = (val_L < 40) and (val_U > -1)
+	#d = (val_D < 40) and (val_D > -1)
 	e = (val > 60) or (val is -1)
-	return ((a or b or c or d) and e)
+	return e #((a or b or c or d) and e)
 
 # This is the program's main function
 if __name__ == '__main__':
