@@ -56,15 +56,19 @@ def getCostIndex(x,y):
     index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
     return index 
 
+#takes in x and y in col and row NUMBER
 def pointToIndex(x,y):
     global mapdata
     
     #get map info
     cols = mapdata.info.width
-    
+    print "NUM COLS PT INDEX: ",cols
+    #rows = mapdata.info.height
+    #res = grid.info.resolution #m/cell, might come in handy later
    
-    index = (y * cols) + x #zero indexed, (y * cols) represents first number of each row, then add x (the column)
-    return index 
+    index = ((y) * cols) + (x) #zero indexed, (y * cols) represents first number of each row, then add x (the column)
+    #print index
+    return int(index)
 
 
 def astar(start, goal):													# returns zero if no path from start to goal otherwise returns path from start to goal
@@ -95,8 +99,8 @@ def astar(start, goal):													# returns zero if no path from start to goal
 				return repath(current)
 
 			neighbor.gCost = current.gCost + 1
-			
-			neighbor.fCost = neighbor.gCost + eucl(neighbor) #+ (getCostValue(neighbor.x,neighbor.y) / 10)
+			#print "COST = ", getCostValue(neighbor.x,neighbor.y)
+			neighbor.fCost = neighbor.gCost + eucl(neighbor) + (getCostValue(neighbor.x,neighbor.y) / 10)
 
 			if inOpenSet(neighbor):
 				continue
@@ -142,7 +146,7 @@ def dist_between(nodeA, nodeB):
 	return dist
 
 def repath(node):
-	global path
+	#global path
 	path = [node]
 	n = node
 	last = n.cameFrom
@@ -155,9 +159,7 @@ def repath(node):
 def updateCostmap(msg):
     global costmap
     if msg:
-    	scaled_map = msg
-    	scaled_map.info.resolution = 1
-        costmap = scaled_map
+        costmap = msg
         
 
 def drawPath(nodelist):
@@ -299,6 +301,8 @@ def updatelCost(msg):
 	global start
 	global pose
 	global pub_our_cost
+	global wp
+	
 
 	if(msg):
 		print "LOCAL COST UPDATE!!!"
@@ -335,14 +339,14 @@ def updatelCost(msg):
 
         print "RESTARTING ASTAR!"
         start = Node((prev_start_x + x_from_start), (prev_start_y + y_from_start), 0,0, prev_start)
-        path = astar(start,goal)
-        print "GOT PATH!"
-        printPath(path)
-        drawPath(path) #publishes
+        
+        new_path = astar(start,goal)
+        drawPath(new_path) #publishes
+        print "DREW NEW PATH!"
 
-        wp = makeWaypoints(path)
-        printPath(wp)
-        pubWaypoints(wp)
+        new_wp = makeWaypoints(new_path)
+        printPath(new_wp)
+        pubWaypoints(new_wp)
 
         print "PAUSED ---- DID I WORK?"
 
@@ -354,48 +358,77 @@ def updatelCost(msg):
 #################-MAIN-##############################
 
 def main():
-	global ipose
-	global gl
-	#global pub_pose
-	global start
-	global goal	
-	global buffer_cells
-	global set_of_cells
+    global ipose
+    global pose
+    global gl
+    #global pub_pose
+    global start
+    global goal	
+    global buffer_cells
+    global set_of_cells
+    global wp
+    global path
+
+    waitForPoses()
+
+    waitForBuffer()
+
+    #get start and goal from rviz
+    #print "ipose - x rnd", toRes(ipose.pose.position.x)
+    #print "ipose - x raw", ipose.pose.position.x
+    #round x and y to grid resolution
+    start = Node(toRes(pose.pose.position.x), toRes(pose.pose.position.y), 0,0,0)
 
 
-	waitForPoses()
+    #print "goal - x rnd", toRes(gl.position.x)
+    goal = Node(toRes(gl.position.x), toRes(gl.position.y),0,0,0)
+    start.calcfCost()
+    #pub_pose.publish(ipose)
+    path = astar(start,goal)
 
-	waitForBuffer()
+    print "ASTAR DONE"
 
-	#get start and goal from rviz
-	#print "ipose - x rnd", toRes(ipose.pose.position.x)
-	#print "ipose - x raw", ipose.pose.position.x
-	#round x and y to grid resolution
-	start = Node(toRes(ipose.pose.position.x), toRes(ipose.pose.position.y), 0,0,0)
+    printPath(path)
+    drawPath(path) #publishes
+
+    wp = makeWaypoints(path)
+    
+    wp = [start] + wp + [goal]
+    
+    printPath(wp)
+    pubWaypoints(wp)
+
+    while True:
+        
+        rospy.sleep(rospy.Duration(10, 0))
+        #rerun astar
+        new_start = Node(toRes(pose.pose.position.x), toRes(pose.pose.position.y), 0,0,0)
 
 
-	#print "goal - x rnd", toRes(gl.position.x)
-	goal = Node(toRes(gl.position.x), toRes(gl.position.y),0,0,0)
-	start.calcfCost()
-	#pub_pose.publish(ipose)
-	path = astar(start,goal)
+        #print "goal - x rnd", toRes(gl.position.x)
+        goal = Node(toRes(gl.position.x), toRes(gl.position.y),0,0,0)
+        new_start.calcfCost()
+        #pub_pose.publish(ipose)
+        new_path = astar(new_start,goal)
 
-	print "ASTAR DONE"
+        print "ASTAR DONE"
 
-	printPath(path)
-	drawPath(path) #publishes
+        printPath(new_path)
+        drawPath(new_path) #publishes
 
-	wp = makeWaypoints(path)
-	printPath(wp)
-	pubWaypoints(wp)
+        new_wp = makeWaypoints(new_path)
 
-	#for w in wp:
-		#driveToWaypoint(start,goal)
+        new_wp = [start] + new_wp + [goal]
 
-	print "30 SEC REMAINING..."
-	rospy.sleep(rospy.Duration(30, 0))
+        printPath(new_wp)
+        pubWaypoints(new_wp)
+        print "PUBLISHED!"
 
-	print "DONE!"
+        
+	    #drivePath()
+	    #if close to goal break
+
+    print "DONE!"
 	
 #returns true if turns clockwise
 def turnCW(din,dout):
@@ -502,6 +535,8 @@ def driveStraight(distance):
     speed = 0.3
 
     global pose
+    global goal
+    global path
     
     print "DRIVING!"
     
@@ -512,6 +547,10 @@ def driveStraight(distance):
     #loop until distance between robot and initial frme is distance specified
     
     while (not atTarget and not rospy.is_shutdown()):
+    
+        
+        
+    
         currentX = pose.pose.position.x
         currentY = pose.pose.position.y
         #calc current distance
@@ -539,45 +578,50 @@ def driveStraight(distance):
             #print "GO!"
    
 #drives to waypoint and turns to face next one
-def driveToWaypoint(start_node, end_node):
-	prevNode = start_node #initialize starting node
-	lastNode = end_node
-	numWaypoints = len(wp)
+def drivePath():
+    global wp
+    
+    prevNode = wp[0] #initialize starting node
+    lastNode = wp[len(wp) - 1]
+    numWaypoints = len(wp)
 
-	#travel to waypoints
-	for i in range(0,numWaypoints):
-			wnode = wp[i]
-		
-			if wnode is wp[numWaypoints]:
-				#special case for last node
-				break
-		
-			nextNode = wp[i+1]
-		
-			res_scale = 20
-			#ps = PoseStamped()
-			#ps.header.frame_id = "map"
-			#ps.pose.position.x = wnode.x / res_scale
-			#ps.pose.position.y = wnode.y / res_scale 
-			#print "going to pose: ", "(",wnode.x,",", wnode.y,")"
+    #travel to waypoints
+    for i in range(1,numWaypoints):
+	    wnode = wp[i]
 
-			directionIn = getDirection(prevNode.x, prevNode.y, wnode.x, wnode.y)
-			directionOut = getDirection(wnode.x, wnode.y, nextNode.x, nextNode.y)
+	    if wnode is wp[numWaypoints - 1]:
+		    #special case for last node TBD!!!
+		    break
 
-			angle = (math.pi / 2)
-			if turnCW(directionIn,directionOut):
-				angle *= -1
-			###~~~NEED TO MODIFY ROTATE TO USE ABSOLUTE ANGLE!!!!!!~~~~~###
-			rotate(angle)
+	    nextNode = wp[i+1]
+
+	    res_scale = 4
+	    #ps = PoseStamped()
+	    #ps.header.frame_id = "map"
+	    #ps.pose.position.x = wnode.x / res_scale
+	    #ps.pose.position.y = wnode.y / res_scale 
+	    #print "going to pose: ", "(",wnode.x,",", wnode.y,")"
+
+	    directionIn = getDirection(prevNode.x, prevNode.y, wnode.x, wnode.y)
+	    directionOut = getDirection(wnode.x, wnode.y, nextNode.x, nextNode.y)
+
+	    angle = (math.pi / 2)
+	    if turnCW(directionIn,directionOut):
+		    angle *= -1
+	    
 
 
-			#drive straight
-			dist = eucl2(prevNode,wnode)
-			print "dist to go: ", str(dist), "m, To scale: ", (dist / res_scale)
-			driveStraight(dist / res_scale)
-			print "at waypoint!"
-			prevNode = wnode
-			break
+	    #drive straight
+	    dist = eucl2(prevNode,wnode)
+	    print "dist to go: ", str(dist), "m, To scale: ", (dist / res_scale)
+	    driveStraight(dist / res_scale)
+	    print "at waypoint!"
+	    
+	    print "TURNING: ", angle
+	    rotate(pose.pose.orientation.z - angle)
+	    
+	    prevNode = wnode
+	    break
 		
 
 #Accepts an angle RADIANS and makes the robot rotate around it.
@@ -636,24 +680,48 @@ def navToPose(goal):
 def timerCallback(event):
     global pose
     pose = PoseStamped()
-    
+    pose.header.frame_id = "map"
+    global high_cost_cells
+    global path
+    global wp
+
     #note: odom for stage, map for real turtlebot?
     odom_list.waitForTransform('odom','base_footprint', rospy.Time(0), rospy.Duration(2.0))
     (position, orientation) = odom_list.lookupTransform('odom','base_footprint', rospy.Time(0)) #finds the position and oriention of two objects relative to each other (hint: this returns arrays, while Pose uses lists)
-    
+
     #store position info into pose
     pose.pose.position.x = position[0]
     pose.pose.position.y = position[1]
 
-    
+
     odomW = orientation
     q = [odomW[0],odomW[1],odomW[2],odomW[3]]
     roll,pitch,yaw = euler_from_quaternion(q)
     #convert yaw to degrees
     pose.pose.orientation.z = yaw
-    
+
+    pub_pose.publish(pose)
+
     #publish new costmap
     #pub_our_cost.publish(costmap)
+
+#    for pnode in path:
+ #       if (costmap.data[pointToIndex(pnode.x,pnode.y)] > 70 ):
+#            pnt = Point()
+#            pnt.x = n.x * 0.25
+#            pnt.y = n.y * 0.25
+#            pnt.z = 0
+#            if pnt not in high_cost_cells:
+#                print "THERES A HIGH COST AREA ON PATH!"
+#                publishTwist(0,0)
+#                
+#                #add to buffer cells as if wall
+#                buffer_cells.cells.append(pnt)
+#                
+#                #add to list as to not repeat
+#                high_cost_cells.append(pnt)
+    
+                    
 	
 #updates buffer with cells from our frontier cell expansion
 def updateBuffer(msg):
@@ -667,63 +735,67 @@ def printPath(path):
 
 
 if __name__ == '__main__':
-	global goal
-	global start
-	global spose
-	#global GridCells
-	global mapdata
+    global goal
+    global start
+    global spose
+    #global GridCells
+    global mapdata
 
-	global pub_path
-	global pub_points
-	global pub_pose
-	global pub_goal
-	#from lab 2:
-	global pub
-	global pose
-	global odom_tf
-	global odom_list
-	global length
-	global pub_our_cost
-    
-    
+    global pub_path
+    global pub_points
+    global pub_pose
+    global pub_goal
+    #from lab 2:
+    global pub
+    global pose
+    global odom_tf
+    global odom_list
+    global length
+    global pub_our_cost
+    global high_cost_cells
+
+    high_cost_cells = []
+
+    path = []
+
     #pose = pose()
-	length = 0.23 #m
+    length = 0.23 #m
 
-	spose = PoseStamped()
-	#GridCells = GridCells()
+    spose = PoseStamped()
+    #GridCells = GridCells()
 
-	rospy.init_node("lab4")
+    rospy.init_node("lab4")
 
-########PUBLISHERS
-	pub_path = rospy.Publisher('/astarpath', Path, queue_size=1)
-	rospy.sleep(rospy.Duration(1, 0))
-	pub_points = rospy.Publisher('/ourwaypoints', GridCells, queue_size=1)
-	rospy.sleep(rospy.Duration(1, 0))
-	pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 10) # Publisher for commanding robot motion
-	pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=1)
-	#pub_pose = rospy.Publisher('/arrow', PoseStamped, queue_size = 1)
-	pub_our_cost = rospy.Publisher('/our_costmap', OccupancyGrid, queue_size=10)
- 
-########SUBSCRIBERS
-	goal_sub = rospy.Subscriber('/goalpose', PoseStamped, gl, queue_size=1)
-	init_sub = rospy.Subscriber('/startpose', PoseWithCovarianceStamped, ipose, queue_size=1)
-	map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)	
-	buff_sub = rospy.Subscriber('/expanded_cells', GridCells, updateBuffer, queue_size=1)
-	cost_sub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, updateCostmap, queue_size=1)
-	#lcost_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdate, updatelCost, queue_size=1)
+    ########PUBLISHERS
+    pub_path = rospy.Publisher('/astarpath', Path, queue_size=10)
+    rospy.sleep(rospy.Duration(1, 0))
+    pub_points = rospy.Publisher('/ourwaypoints', GridCells, queue_size=10)
+    rospy.sleep(rospy.Duration(1, 0))
+    pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 10) # Publisher for commanding robot motion
+    pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=1)
+    pub_pose = rospy.Publisher('/arrow', PoseStamped, queue_size = 1)
+    pub_our_cost = rospy.Publisher('/our_costmap', OccupancyGrid, queue_size=10)
+
+    ########SUBSCRIBERS
+    goal_sub = rospy.Subscriber('/goalpose', PoseStamped, gl, queue_size=1)
+    init_sub = rospy.Subscriber('/startpose', PoseWithCovarianceStamped, ipose, queue_size=1)
+    map_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid, queue_size=1)	
+    buff_sub = rospy.Subscriber('/expanded_cells', GridCells, updateBuffer, queue_size=1)
+    cost_sub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, updateCostmap, queue_size=1)
+    #lcost_sub = rospy.Subscriber('/move_base/local_costmap/costmap_updates', OccupancyGridUpdate, updatelCost, queue_size=1)
     #bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
-	#goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, readGoal, queue_size=1) # Callback function to handle bumper events
+    #goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, readGoal, queue_size=1) # Callback function to handle bumper events
 
     # Use this object to get the robot's Odometry 
-	##odom_list = tf.TransformListener()
+    odom_list = tf.TransformListener()
 
     #make the robot keep doing something...
-	rospy.Timer(rospy.Duration(0.01), timerCallback)
+    rospy.Timer(rospy.Duration(0.01), timerCallback)
     # Use this command to make the program wait for some seconds
-	rospy.sleep(rospy.Duration(1, 0))
+    rospy.sleep(rospy.Duration(1, 0))
 
-	print "begin main"
-	
-	main()
+    print "begin main"
 
-	print "end main"
+    main()
+
+    print "end main"
