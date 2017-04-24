@@ -10,31 +10,8 @@ class Node:
 		self.fCost = fCost
 		self.cameFrom = cameFrom
 
-	def	expand(self):
-		lis = ()
-		A = Node(x, y+1, gCost + 1, heur(goal.x-x, goal.y-y+1), self)
-		B = Node(x, y-1, gCost + 1, heur(goal.x-x, goal.y-y-1), self)
-		C = Node(x+1, y, gCost + 1, heur(goal.x-x+1, goal.y-y), self)
-		D = Node(x-1, y, gCost + 1, heur(goal.x-x-1, goal.y-y), self)
-		lis.append(A)
-		lis.append(B)
-		lis.append(C)
-		lis.append(D)
-		for i in range(4):
-			if(getCellValue(i.x, i.y) not == -1) and not in visited:
-				push(i)
 	
-class myPriorityQueue():
-	global visited
-	def __init__(self):
-		self.pq = queue.PriorityQueue()
 
-	def push(self, node):
-			self.pq.put((node.fCost, node))
-
-	def pop(self):
-		visited.add(self.pq.get()[1])
-		return self.pq.get()[1]
 
 def astar(start, goal):													
 	global frontier
@@ -74,14 +51,14 @@ def getCellValue(x,y):
 # 	return path
 
 def heur(x, y):
-	return sqrt(x** + y**)
+	pass
 
 def main():
 	global path
 	global frontier
 	global visited
 
-	frontier = myPriorityQueue()
+	frontier = queue.PriorityQueue()
 
 
 if __name__ == '__main__':

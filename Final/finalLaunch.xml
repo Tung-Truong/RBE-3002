@@ -1,0 +1,15 @@
+<launch>
+	<node
+		pkg="slam_gmapping"
+		type="slam_gmapping_node"
+		name="slam_gmapping"
+		output="screen"
+		respawn="true"
+	/>	
+	<node
+		pkg="move_base"
+		type="move_base_node"
+		name="move_base"
+		respawn="true"
+	/>
+</launch>		
