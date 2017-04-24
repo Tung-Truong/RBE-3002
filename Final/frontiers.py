@@ -103,10 +103,8 @@ def linearizeFrontier():
 	global frontier_cells
 
 	lines = list() #list of lists
-
-	#place each frontier cell into lines accordingly
-	for p in frontier_cells:
-		lines = scanLines(lines,p)
+	
+	#S...
 
 	return lines
 
@@ -149,7 +147,7 @@ def areNeighbors(p1,p2):
 	dx = abs(p1.x - p2.x)
 	dy = abs(p1.y - p2.y)
 	#print "CHECKING <",dx,",",dy,"> RESULT = ", str((dx <= map_res) or (dy <= map_res))
-	return ((dx <= (3*map_res)) and (dy <= (3*map_res)))
+	return ((dx <= (2*map_res)) and (dy <= (2*map_res)))
 
 
 #takes in x and y in col and row NUMBER (NOT meters!!)
