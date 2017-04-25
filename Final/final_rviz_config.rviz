@@ -9,6 +9,7 @@ Panels:
         - /GridCells1
         - /GridCells2
         - /GridCells3
+        - /GridCells3/Status1
       Splitter Ratio: 0.494186
     Tree Height: 470
   - Class: rviz/Selection
@@ -157,7 +158,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -0.00999997
+      Angle: 0
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
@@ -166,11 +167,11 @@ Visualization Manager:
         Value: false
       Name: Current View
       Near Clip Distance: 0.01
-      Scale: 110.208
+      Scale: 142.006
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: 7.74793
-      Y: 16.48
+      X: 6.96886
+      Y: 12.0762
     Saved: ~
 Window Geometry:
   Displays:
@@ -188,5 +189,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1131
-  X: 102
-  Y: 64
+  X: 111
+  Y: 36

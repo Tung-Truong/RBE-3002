@@ -10,11 +10,10 @@ from tf.transformations import euler_from_quaternion
 #returns a point object given x,y in METERS
 def makePoint(x,y):
 	p = Point()
-	p.x = x #round(x,2)
-	p.y = y #round(y,2)
+	p.x = round(x,2)
+	p.y = round(y,2)
 	p.z = 0
 	return p
-
 
 #breaks the global map down into cell types
 def parseMap():
@@ -83,7 +82,7 @@ def isFrontier(index):
 	return (a or b or c or d)
 
 #return gridcells object given set of points
-def setToGrid(points):
+def toGrid(points):
 	global map_res
 
 	#create starting GridCells object
@@ -93,8 +92,7 @@ def setToGrid(points):
 	gc.cell_height = map_res
 
 	#add each point to GridCells object
-	for p in points:
-		gc.cells.append(p)
+	gc.cells.extend(points)
 
 	return gc
 
@@ -103,71 +101,74 @@ def linearizeFrontier():
 	global finalset
 	global blobset
 
-	while frontier_cells.size() > 0:  # runs until frontier_cells is empty
+	while len(frontier_cells) > 0:  # runs until frontier_cells is empty
 		first = frontier_cells.pop()  # grabs a random object and pops it from frontier_cells
-		finalset.clear()  # clears finalset after every loop
-		blob = makeBlob(first) # starts the recursion of grouping frontier cells into blobs
-		blobset.add(blob) # adds blob to a set of frontier blobs
-		print "blobset: ", blobset
+		frontier_cells.add(first)
+		#print "FIRST NODE: ",first
+		finalset = list()  # clears finalset after every loop
+		makeBlob(first)
+		blobset.append(finalset) # adds blob to a set of frontier blobs
+		print "BLOB ADDED TO BLOBSET" #, blobset
+
+
+	return blobset
 
 def makeBlob(node):
 	global frontier_cells
 	global finalset
+	global map_res
 
-	finalset.add(node)
-	frontier_cells.remove(node)
+	finalset.append(node)
+	removeFromFrontier(node)
 	
 	x = node.x # get x,y
 	y = node.y
 
 	#check each neighboring cell (4 connected check)
-	if makePoint(x + 1, y) in frontier_cells: # if this cell is in frontier_cells, meaning it is a frontier cell
-		newNode = makePoint(x+1,y) # creates a new node with the point and marks it as unexplored
-		print "newNode: ", newNode
-		finalset.add(newNode) 
-		makeBlob(newNode) # recursively checks all the neighbors of this neighbor until all neighbors have been checked
+	newNode1 = makePoint(round(x +  map_res,2), y) # creates a new node with the point and marks it as unexplored
+	if inFrontier(newNode1): # if this cell is in frontier_cells, meaning it is a frontier cell
+		#print "newNode: ", newNode1
+		#finalset.add(newNode1) 
+		makeBlob(newNode1) # recursively checks all the neighbors of this neighbor until all neighbors have been checked
 
-	if makePoint(x - 1, y) in frontier_cells:
-		newNode = makePoint(x - 1, y)
-		print "newNode: ", newNode
-		finalset.add(newNode)
-		makeBlob(newNode)
+	newNode2 = makePoint(round(x - map_res,2), y)
+	if inFrontier(newNode2):
+		#print "newNode: ", newNode2
+		#finalset.add(newNode2)
+		makeBlob(newNode2)
 
-	if makePoint(x, y + 1) in frontier_cells:
-		newNode = makePoint(x, y + 1)
-		print "newNode: ", newNode
-		finalset.add(newNode)
-		makeBlob(newNode)
+	newNode3 = makePoint(x, round(y + map_res,2))
+	if inFrontier(newNode3):
+		#print "newNode: ", newNode3
+		#finalset.add(newNode3)
+		makeBlob(newNode3)
 
-	if makePoint(x, y - 1) in frontier_cells:
-		newNode = makePoint(x, y-1)
-		print "newNode: ", newNode
-		finalset.add(newNode)
-		makeBlob(newNode)
+	newNode4 = makePoint(x, round(y - map_res,2))
+	if inFrontier(newNode4):	
+		#print "newNode: ", newNode4
+		#finalset.add(newNode4)
+		makeBlob(newNode4)
 
-	print "final set: ", finalset
+	print "FINAL SET FOUND!"
 	
-	return finalset # returns the final blob
+#removes given point from frontier cells
+def removeFromFrontier(point):
+	global frontier_cells
 
+	for p in list(frontier_cells):
+		#if p is this point remove it
+		if (abs(p.x - point.x) < 0.02) and (abs(p.y - point.y) < 0.02):
+			frontier_cells.remove(p)
+			break
 
-#function to refactor for loops, to return when done checking lines to break outer for loop
-def scanLines(lines,p):
-	#check against existing lines
-	for i in range(0,len(lines)):
-		line = lines[i]
-		for q in line:
+#returns true if given point is in frontier 
+def inFrontier(point):
+	global frontier_cells
 
-			if areNeighbors(p,q):
-				#add p to line in lines
-				lines[i].append(p) 
-				#print "JOINED TOGETHER LINE!"
-				return lines #will prompt outer for loop to continue
-
-	#if point is not near any existing line, make it a new line
-	new_line = list()
-	new_line.append(p)
-	lines.append(new_line)
-	return lines
+	for p in list(frontier_cells):
+		if (abs(p.x - point.x) < 0.02) and (abs(p.y - point.y) < 0.02):
+			return True
+	return False
 
 #prints out lines made to debug via CLI
 def printLines(lines):
@@ -175,21 +176,9 @@ def printLines(lines):
 	count_lines = 0
 	print "GENERATED ",len(lines)," FRONTIER LINES"
 	for l in lines:
-		p1 = l[0]
-		p2 = l[-1]
-		line_ends.add(p1)
-		line_ends.add(p2)
-		print "LINE #",count_lines," FROM (",p1.x,",",p1.y,") TO (",p2.x,",",p2.y,") W/ LEN ",len(l)
+		if len(l) > 1:
+			print "LINE #",count_lines," W/ LEN ",len(l)
 		count_lines += 1
-
-#returns true if 1 point is neighbor of second point (8-connected)
-def areNeighbors(p1,p2):
-	global map_res
-	dx = abs(p1.x - p2.x)
-	dy = abs(p1.y - p2.y)
-	#print "CHECKING <",dx,",",dy,"> RESULT = ", str((dx <= map_res) or (dy <= map_res))
-	return ((dx <= (2*map_res)) and (dy <= (2*map_res)))
-
 
 #takes in x and y in col and row NUMBER (NOT meters!!)
 def pointToIndex(x,y):
@@ -201,19 +190,18 @@ def pointToIndex(x,y):
     return int(index)
 
 #returns larget list in a list of lists
-def largestLine(lol):
+def largestLine(lines):
 	largest_length = 0
-	largest_list = list()
-	for i in range(0,len(lol)):
-		l = lol[i]
+	#largest_line = set()
+	for i in range(0,len(lines)):
+		l = list(lines[i])
 		curr_len = len(l)
 		if curr_len > largest_length:
 			largest_length = curr_len
-			largest_list = l
-	return largest_list
-
-
-
+			largest_line = l
+	print "LARGEST LENGTH = ",largest_length
+	print "LARGEST BLOB = ", largest_line
+	return largest_line
 
 #map sub callback
 def setMap(msg):
@@ -226,6 +214,26 @@ def setMap(msg):
 		got_map = True
 		map_res = round(msg.info.resolution,2) #<-- already done in parseMap
 		print "RESOLUTION = ",map_res," METERS"
+
+#finds xy of center of line
+def center(points):
+	x_sum = 0
+	y_sum = 0
+
+	#cumulative sum of x and y
+	for p in points:
+		x_sum += p.x
+		y_sum += p.y
+
+	#divide to get average
+	n = len(points)
+	x_avg = x_sum / n
+	y_avg = y_sum / n
+
+	x_avg = round(x_avg / 0.05) * 0.05
+	y_avg = round(y_avg / 0.05) * 0.05
+
+	return makePoint(x_avg,y_avg)
 
 #############################---MAIN---##################################
 
@@ -260,7 +268,8 @@ def main():
 	
 	parseMap()	
 
-		
+	print "PUBLISHING FRONTIER CELLS..."
+	pub_frontier.publish(toGrid(frontier_cells))	
 
 	print "LINEARIZING FRONTIER..."
 
@@ -270,14 +279,14 @@ def main():
 
 	print "RESULTS: ",start_len," POINTS GROUPED INTO ",end_len," LINES"
 	printLines(lines)
-	pub_ends.publish(setToGrid(line_ends))
-	print "PUBLISHED END CELLS!"	
-
-	print "PUBLISHING FRONTIER CELLS..."
-	pub_frontier.publish(setToGrid(frontier_cells))
 
 	rospy.sleep(rospy.Duration(0.5, 0))
-	pub_largest.publish(setToGrid(largestLine(lines)))
+
+	dest_line = largestLine(lines)
+	pub_largest.publish(toGrid(dest_line))
+
+	dest = [center(dest_line)]
+	pub_ends.publish(toGrid(dest))
 
 ########################---END MAIN---################################33
 
@@ -303,8 +312,8 @@ if __name__ == '__main__':
 	occupied_cells = set()
 	unknown_cells = set()
 	line_ends = set()
-	finalset = set()
-	blobset = set()
+	finalset = list()
+	blobset = list()
 
 	#init node
 	rospy.init_node('frontier_ops_node')
