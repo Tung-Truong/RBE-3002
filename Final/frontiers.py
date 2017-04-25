@@ -98,15 +98,56 @@ def setToGrid(points):
 
 	return gc
 
-#group frontier cells into lines, returns list of lists
 def linearizeFrontier():
 	global frontier_cells
+	global finalset
+	global blobset
 
-	lines = list() #list of lists
+	while frontier_cells.size() > 0:  # runs until frontier_cells is empty
+		first = frontier_cells.pop()  # grabs a random object and pops it from frontier_cells
+		finalset.clear()  # clears finalset after every loop
+		blob = makeBlob(first) # starts the recursion of grouping frontier cells into blobs
+		blobset.add(blob) # adds blob to a set of frontier blobs
+		print "blobset: ", blobset
+
+def makeBlob(node):
+	global frontier_cells
+	global finalset
+
+	finalset.add(node)
+	frontier_cells.remove(node)
 	
-	#S...
+	x = node.x # get x,y
+	y = node.y
 
-	return lines
+	#check each neighboring cell (4 connected check)
+	if makePoint(x + 1, y) in frontier_cells: # if this cell is in frontier_cells, meaning it is a frontier cell
+		newNode = makePoint(x+1,y) # creates a new node with the point and marks it as unexplored
+		print "newNode: ", newNode
+		finalset.add(newNode) 
+		makeBlob(newNode) # recursively checks all the neighbors of this neighbor until all neighbors have been checked
+
+	if makePoint(x - 1, y) in frontier_cells:
+		newNode = makePoint(x - 1, y)
+		print "newNode: ", newNode
+		finalset.add(newNode)
+		makeBlob(newNode)
+
+	if makePoint(x, y + 1) in frontier_cells:
+		newNode = makePoint(x, y + 1)
+		print "newNode: ", newNode
+		finalset.add(newNode)
+		makeBlob(newNode)
+
+	if makePoint(x, y - 1) in frontier_cells:
+		newNode = makePoint(x, y-1)
+		print "newNode: ", newNode
+		finalset.add(newNode)
+		makeBlob(newNode)
+
+	print "final set: ", finalset
+	
+	return finalset # returns the final blob
 
 
 #function to refactor for loops, to return when done checking lines to break outer for loop
@@ -250,7 +291,9 @@ if __name__ == '__main__':
 	global occupied_cells
 	global unknown_cells
 	global line_ends
-
+	global blobset
+	global finalset
+	
 	global map_res #in meters per cell
 
 	#intitialize some globals
@@ -260,6 +303,8 @@ if __name__ == '__main__':
 	occupied_cells = set()
 	unknown_cells = set()
 	line_ends = set()
+	finalset = set()
+	blobset = set()
 
 	#init node
 	rospy.init_node('frontier_ops_node')
