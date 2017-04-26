@@ -70,11 +70,26 @@ def isFrontier(index):
 	cols = mapdata.info.width
 	d = mapdata.data
 
+	if (index - 1 > 0):
+		val_L = d[index - 1]
+	else:
+		val_L = False
 
-	val_L = d[index - 1]
-	val_R = d[index + 1]
-	val_U = d[index - cols]
-	val_D = d[index + cols]
+	if (index + 1 < len(d)):
+		val_R = d[index - 1]
+	else:
+		val_R = False
+
+	if (index - cols > 0):
+		val_U = d[index - cols]
+	else: 
+		val_U = False
+
+	if (index + cols < len(d)):
+		val_D = d[index + cols]
+	else: 
+		val_D = False
+
 	a = (val_D is -1)
 	b = (val_R is -1)
 	c = (val_L is -1)
@@ -235,38 +250,13 @@ def center(points):
 
 	return makePoint(x_avg,y_avg)
 
-#############################---MAIN---##################################
-
-def main():
-	global map_res
-	global mapdata
+#sequence of operations for evaluating map and frontier lines
+def frontierOps():
+	global dest_line
+	global dest
 	global frontier_cells
-	global got_map
 
-	got_map = False
-
-	#for initial testing only
-	map_res = 0.05
-
-
-	######################
-	#    NOTE:           #
-	# POINTS X Y Z       #
-	#  ARE ALL IN        #
-	#   METERS!!!        #
-	######################
-
-	print "WAITING FOR MAP..."
-
-	while True:
-		if got_map:
-			print "DONE WAITING FOR MAP!"
-			break
-
-
-	print "PARSING MAP..."
-	
-	parseMap()	
+	parseMap()
 
 	print "PUBLISHING FRONTIER CELLS..."
 	pub_frontier.publish(toGrid(frontier_cells))	
@@ -285,8 +275,140 @@ def main():
 	dest_line = largestLine(lines)
 	pub_largest.publish(toGrid(dest_line))
 
-	dest = [center(dest_line)]
-	pub_ends.publish(toGrid(dest))
+	dest = center(dest_line)
+	pub_ends.publish(toGrid([dest]))
+
+#Accepts an angle RADIANS and makes the robot rotate around it.
+def rotate(angle):
+    global odom_list
+    global pose
+    
+    speed = 0.2 #rad/s
+    done = True
+    #get current angular position
+    theta = pose.pose.orientation.z
+    error = angle - theta #calc difference
+    
+    
+    #determine direction to turn
+    if (error < 0):
+        #turn CW by reversing ang speed
+        speed = speed * (-1)
+    
+    while ((abs(error) >= 0.035) and not rospy.is_shutdown()):
+        publishTwist(0,speed)
+        rospy.sleep(0.15)
+        #for debug
+        #print "pose: " + str(math.degrees(pose.pose.orientation.z))
+        #update error
+        error = angle - pose.pose.orientation.z
+        
+    publishTwist(0,0)
+
+# Add additional imports for each of the message types used
+def publishTwist(linearVelocity, angularVelocity):
+    #send a twist message
+    global pub_move
+    msg = Twist()
+    msg.linear.x = linearVelocity
+    msg.angular.z = angularVelocity
+    pub_move.publish(msg)
+    #print "PUBLISH!"
+
+#updates global variables for odometry
+def timerCallback(event):
+    global pose
+    pose = PoseStamped()
+    pose.header.frame_id = "map"
+
+
+    #note: odom for stage, map for real turtlebot?
+    odom_list.waitForTransform('odom','base_footprint', rospy.Time(0), rospy.Duration(2.0))
+    (position, orientation) = odom_list.lookupTransform('odom','base_footprint', rospy.Time(0)) #finds the position and oriention of two objects relative to each other (hint: this returns arrays, while Pose uses lists)
+
+    #store position info into pose
+    pose.pose.position.x = position[0]
+    pose.pose.position.y = position[1]
+
+
+    odomW = orientation
+    q = [odomW[0],odomW[1],odomW[2],odomW[3]]
+    roll,pitch,yaw = euler_from_quaternion(q)
+    #convert yaw to degrees
+    pose.pose.orientation.z = yaw
+
+    #pub_pose.publish(pose)
+
+
+
+#############################---MAIN---##################################
+
+
+def main():
+	global pose
+	global map_res
+	global mapdata
+	global frontier_cells
+	global got_map
+	global dest_line
+	global dest
+
+
+	got_map = False
+
+	#for initial testing only
+	map_res = 0.05
+
+
+	######################
+	#    NOTE:           #
+	# POINTS X Y Z       #
+	#  ARE ALL IN        #
+	#   METERS!!!        #
+	######################
+
+	#print "WAITING FOR MAP..."
+
+	#while True:
+	#	if got_map:
+	#		print "DONE WAITING FOR MAP!"
+	#		break
+
+
+	print "PARSING MAP..."
+	
+	########_BEGIN MAIN LOOP_#########
+	while True:
+		#spin 360 degrees
+		#rotate(math.pi)
+		#rotate(math.pi)
+
+		#evaluate maps and frontiers
+		frontierOps()
+
+		#chech if any big frontiers remain
+		if len(dest_line) < 5:
+			break
+		
+		#publish navigation goal
+		goal = PoseStamped()
+		goal.header.frame_id = "map"
+		goal.pose.position = dest
+		#goal.pose.orientation = pose.pose.orientation
+		#goal.pose.orientation.z = 0
+		#goal.pose.orientation.y = 0
+		#goal.pose.orientation.x = 0
+		goal.pose.orientation.w = 1.0
+		print "Curr pose = ",pose
+		print "dest = ",dest
+		print "goal = ",goal
+		pub_goal.publish(goal)
+
+		#wait until is at destination
+		break
+
+
+	
 
 ########################---END MAIN---################################33
 
@@ -302,6 +424,7 @@ if __name__ == '__main__':
 	global line_ends
 	global blobset
 	global finalset
+
 	
 	global map_res #in meters per cell
 
@@ -325,6 +448,13 @@ if __name__ == '__main__':
 	pub_frontier = rospy.Publisher('/frontier_cells/all', GridCells, queue_size = 10)
 	pub_ends = rospy.Publisher('/frontier_cells/ends', GridCells, queue_size = 10)
 	pub_largest = rospy.Publisher('/frontier_cells/largest', GridCells, queue_size = 10)
+	pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size = 10)
+	pub_move = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 10)
+
+	# odometry stuff
+	odom_list = tf.TransformListener()
+	rospy.Timer(rospy.Duration(0.01), timerCallback)
+	rospy.sleep(rospy.Duration(1, 0))
 
 	print "BEGIN MAIN..."
 
