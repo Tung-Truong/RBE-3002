@@ -9,9 +9,13 @@ from tf.transformations import euler_from_quaternion
 
 #returns a point object given x,y in METERS
 def makePoint(x,y):
+	global mapdata
+	global mapoffsetx
+	global mapoffsety
+	
 	p = Point()
-	p.x = round(x,2)
-	p.y = round(y,2)
+	p.x = round(x,2) + mapoffsetx
+	p.y = round(y,2) + mapoffsety
 	p.z = 0
 	return p
 
@@ -30,6 +34,8 @@ def parseMap():
 	num_cols = mapdata.info.width
 	map_res = round(mapdata.info.resolution,2)
 
+
+
 	#actual cell data
 	data = mapdata.data
 
@@ -41,7 +47,7 @@ def parseMap():
 			index = pointToIndex(x,y)
 			val = data[index]
 
-			print "Checking cell (",x,y,") of value: ",val, " #",index," of ",(num_rows*num_cols)
+			#print "Checking cell (",x,y,") of value: ",val, " #",index," of ",(num_rows*num_cols)
 
 			#convert x and y to METERS
 			xm = x * map_res
@@ -123,7 +129,7 @@ def linearizeFrontier():
 		finalset = list()  # clears finalset after every loop
 		makeBlob(first)
 		blobset.append(finalset) # adds blob to a set of frontier blobs
-		print "BLOB ADDED TO BLOBSET" #, blobset
+		#print "BLOB ADDED TO BLOBSET" #, blobset
 
 
 	return blobset
@@ -164,7 +170,7 @@ def makeBlob(node):
 		#finalset.add(newNode4)
 		makeBlob(newNode4)
 
-	print "FINAL SET FOUND!"
+	#print "FINAL SET FOUND!"
 	
 #removes given point from frontier cells
 def removeFromFrontier(point):
@@ -189,11 +195,11 @@ def inFrontier(point):
 def printLines(lines):
 	global line_ends
 	count_lines = 0
-	print "GENERATED ",len(lines)," FRONTIER LINES"
+	#print "GENERATED ",len(lines)," FRONTIER LINES"
 	for l in lines:
 		if len(l) > 1:
 			print "LINE #",count_lines," W/ LEN ",len(l)
-		count_lines += 1
+			count_lines += 1
 
 #takes in x and y in col and row NUMBER (NOT meters!!)
 def pointToIndex(x,y):
@@ -207,27 +213,31 @@ def pointToIndex(x,y):
 #returns larget list in a list of lists
 def largestLine(lines):
 	largest_length = 0
-	#largest_line = set()
+	largest_line = set()
 	for i in range(0,len(lines)):
 		l = list(lines[i])
 		curr_len = len(l)
 		if curr_len > largest_length:
 			largest_length = curr_len
 			largest_line = l
-	print "LARGEST LENGTH = ",largest_length
-	print "LARGEST BLOB = ", largest_line
+	#print "LARGEST LENGTH = ",largest_length
+	#print "LARGEST BLOB = ", largest_line
 	return largest_line
 
 #map sub callback
 def setMap(msg):
 	global mapdata
 	global got_map
+	global mapoffsetx
+	global mapoffsety
 	#global map_res
 	if msg:
 		print "GOT MAP!!!"
 		mapdata = msg
 		got_map = True
 		map_res = round(msg.info.resolution,2) #<-- already done in parseMap
+		mapoffsetx = msg.info.origin.position.x
+		mapoffsety = msg.info.origin.position.y
 		print "RESOLUTION = ",map_res," METERS"
 
 #finds xy of center of line
@@ -267,7 +277,7 @@ def frontierOps():
 	lines = linearizeFrontier()
 	end_len = len(lines)
 
-	print "RESULTS: ",start_len," POINTS GROUPED INTO ",end_len," LINES"
+	#print "RESULTS: ",start_len," POINTS GROUPED INTO ",end_len," LINES"
 	printLines(lines)
 
 	rospy.sleep(rospy.Duration(0.5, 0))
@@ -327,7 +337,7 @@ def timerCallback(event):
     (position, orientation) = odom_list.lookupTransform('odom','base_footprint', rospy.Time(0)) #finds the position and oriention of two objects relative to each other (hint: this returns arrays, while Pose uses lists)
 
     #store position info into pose
-    pose.pose.position.x = position[0]
+    pose.pose.position.x = position[0] 
     pose.pose.position.y = position[1]
 
 
@@ -352,12 +362,15 @@ def main():
 	global got_map
 	global dest_line
 	global dest
+	global mapoffsetx
+	global mapoffsety
+
 
 
 	got_map = False
 
 	#for initial testing only
-	map_res = 0.05
+	#map_res = 0.05
 
 
 	######################
@@ -367,12 +380,12 @@ def main():
 	#   METERS!!!        #
 	######################
 
-	#print "WAITING FOR MAP..."
+	print "WAITING FOR MAP..."
 
-	#while True:
-	#	if got_map:
-	#		print "DONE WAITING FOR MAP!"
-	#		break
+	while True:
+	 	if got_map:
+	 		print "DONE WAITING FOR MAP!"
+	 		break
 
 
 	print "PARSING MAP..."
@@ -387,13 +400,15 @@ def main():
 		frontierOps()
 
 		#chech if any big frontiers remain
-		if len(dest_line) < 5:
-			break
+		# if len(dest_line) < 2:
+		# 	break
 		
 		#publish navigation goal
 		goal = PoseStamped()
 		goal.header.frame_id = "map"
-		goal.pose.position = dest
+		#goal.pose.position = dest
+		goal.pose.position.x = dest.x - mapoffsetx
+		goal.pose.position.y = dest.y - mapoffsety
 		#goal.pose.orientation = pose.pose.orientation
 		#goal.pose.orientation.z = 0
 		#goal.pose.orientation.y = 0
@@ -406,7 +421,7 @@ def main():
 
 		#wait until is at destination
 		break
-
+	print"dest = ", dest
 
 	
 
@@ -427,6 +442,8 @@ if __name__ == '__main__':
 
 	
 	global map_res #in meters per cell
+	global mapoffsetx
+	global mapoffsety
 
 	#intitialize some globals
 	mapdata = OccupancyGrid()
